@@ -3,10 +3,10 @@ import { useThemeColors } from "@/theme/useThemeColors";
 import { Screen } from "@/components/Screen";
 
 export const options = {
-  title: "Home",
+  title: "Apuestas",
 };
 
-export default function HomeScreen() {
+export default function BetsScreen() {
     const colors = useThemeColors();
     return (
         <Screen>

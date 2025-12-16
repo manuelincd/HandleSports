@@ -3,11 +3,13 @@ import { useThemeColors } from "@/theme/useThemeColors";
 import { Screen } from "@/components/Screen";
 
 export const options = {
-  title: "Home",
+  title: "Perfil",
 };
 
-export default function HomeScreen() {
+export default function ProfileScreen() {
     const colors = useThemeColors();
+
+
     return (
         <Screen>
             

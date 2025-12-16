@@ -1,12 +1,12 @@
 import { Text } from "react-native";
 import { useThemeColors } from "@/theme/useThemeColors";
-import { Screen } from "@/components/Screen";
+import { Screen } from "@/components/Screen";   
 
 export const options = {
-  title: "Home",
+  title: "Buscar",
 };
 
-export default function HomeScreen() {
+export default function SearchScreen() {
     const colors = useThemeColors();
     return (
         <Screen>
