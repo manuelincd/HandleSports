@@ -1,19 +1,21 @@
+import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { PropsWithChildren } from "react";
+import { ReactNode } from "react";
 import { useThemeColors } from "@/theme/useThemeColors";
 
-export function Screen({ children }: PropsWithChildren) {
-  const colors = useThemeColors();
+type Props = {
+    children?: ReactNode;
+    style?: any;
+};
 
-  return (
-    <SafeAreaView
-      style={{
-        flex: 1,
-        backgroundColor: colors.background,
-      }}
-      edges={["top"]}
-    >
-      {children}
-    </SafeAreaView>
-  );
+export function Screen({ children, style }: Props) {
+    const colors = useThemeColors();
+
+    return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["left", "right", "bottom"]}>
+            <View style={[{ flex: 1 }, style]}>
+                {children}
+            </View>
+        </SafeAreaView>
+    );
 }

@@ -4,7 +4,7 @@
     "slug": "handlesports",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/HandleSportsLogoBlack.png",
+    "icon": "./assets/images/logo-light.png",
     "scheme": "handlesports",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -18,7 +18,8 @@
       "predictiveBackGestureEnabled": false
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,

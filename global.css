@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: Manrope_400Regular;
+  src: local("Manrope_400Regular");
+}
+
+@font-face {
+  font-family: Manrope_500Medium;
+  src: local("Manrope_500Medium");
+}
+
+@font-face {
+  font-family: Manrope_600SemiBold;
+  src: local("Manrope_600SemiBold");
+}
+
+@font-face {
+  font-family: Manrope_700Bold;
+  src: local("Manrope_700Bold");
+}
