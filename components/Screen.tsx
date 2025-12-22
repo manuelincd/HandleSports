@@ -12,7 +12,10 @@ export function Screen({ children, style }: Props) {
     const colors = useThemeColors();
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["left", "right", "bottom"]}>
+        <SafeAreaView 
+            style={{ flex: 1, backgroundColor: colors.background }} 
+            edges={["left", "right"]} 
+        >
             <View style={[{ flex: 1 }, style]}>
                 {children}
             </View>

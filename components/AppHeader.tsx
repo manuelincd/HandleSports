@@ -1,51 +1,50 @@
-import {
-    Text,
-    TouchableOpacity,
-    Animated,
-    ViewStyle,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useThemeColors } from "@/theme/useThemeColors";
+import { Ionicons } from "@expo/vector-icons";
+import { Animated, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Props = {
-    translateY: Animated.AnimatedInterpolation<string | number>;
+    scrollY: Animated.Value;
 };
 
-export function AppHeader({ translateY }: Props) {
+export function AppHeader({ scrollY }: Props) {
     const colors = useThemeColors();
     const insets = useSafeAreaInsets();
+    const HEADER_HEIGHT = 56;
 
-    const containerStyle: ViewStyle = {
-        position: "absolute",
-        top: insets.top,            
-        left: 0,
-        right: 0,
-        height: 56,
-        paddingHorizontal: 16,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        backgroundColor: colors.background,
-        zIndex: 10,
-        transform: [{ translateY }],
-    };
+    const translateY = scrollY.interpolate({
+        inputRange: [0, HEADER_HEIGHT + insets.top],
+        outputRange: [0, -(HEADER_HEIGHT + insets.top)],
+        extrapolate: 'clamp',
+    });
 
     return (
-        <Animated.View style={containerStyle}>
-            <Text style={{ width: 24 }} />
+        <Animated.View 
+            className="absolute top-0 left-0 right-0 px-4 flex-row items-center justify-between z-10"
+            style={{
+                backgroundColor: colors.background,
+                height: HEADER_HEIGHT + insets.top,
+                paddingTop: insets.top,
+                transform: [{ translateY }],
+            }}
+        >
+            <Ionicons 
+                name="notifications-outline" 
+                size={30} 
+                color="transparent" 
+            />
 
-            <Text
-                style={{
-                    color: colors.text,
-                    fontSize: 24,
-                    fontWeight: "bold",
-                }}
+            <Text 
+                className="text-2xl font-bold"
+                style={{ color: colors.text }}
             >
                 HandleSports
             </Text>
 
-            <TouchableOpacity>
+            <TouchableOpacity 
+                className="p-2 -m-2"
+                onPress={() => console.log('Notificaciones')}
+            >
                 <Ionicons
                     name="notifications-outline"
                     size={30}

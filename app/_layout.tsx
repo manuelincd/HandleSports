@@ -1,15 +1,17 @@
-import { Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import { useColorScheme, View, ActivityIndicator } from "react-native";
 import { colors } from "@/theme/colors";
-import { useFonts } from "expo-font";
 import {
   Manrope_400Regular,
   Manrope_500Medium,
   Manrope_600SemiBold,
   Manrope_700Bold,
 } from "@expo-google-fonts/manrope";
+import { useFonts } from "expo-font";
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { ActivityIndicator, useColorScheme, View } from "react-native";
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import "../global.css";
+
 
 export default function RootLayout() {
   const scheme = useColorScheme() ?? "light";
@@ -31,7 +33,7 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <GestureHandlerRootView>
       <Stack
         screenOptions={{
           headerStyle: {
@@ -49,6 +51,6 @@ export default function RootLayout() {
       </Stack>
 
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
-    </>
+    </GestureHandlerRootView>
   );
 }
