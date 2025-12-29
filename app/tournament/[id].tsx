@@ -1,20 +1,15 @@
-// app/(tabs)/tournaments/[id].tsx
 
 import { TOURNAMENTS } from "@/data/tournaments";
 import { SPORTS } from "@/data/sports";
 import { useFavoritesStore } from "@/store/useFavorites";
 import { useThemeColors } from "@/theme/useThemeColors";
 import { TournamentSection } from "@/types/Tournament";
+import { TournamentSectionContent } from "@/components/tournaments/TournamentSectionContent";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-function capitalize(str?: string) {
-  if (!str) return "";
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
 
 function getSectionLabel(section: TournamentSection): string {
   const labels: Record<TournamentSection, string> = {
@@ -25,7 +20,7 @@ function getSectionLabel(section: TournamentSection): string {
     bracket: "Cuadro",
     groups: "Grupos",
   };
-  return labels[section] || capitalize(section);
+  return labels[section];
 }
 
 const placeholder = require("@/assets/images/tournament-placeholder.png");
@@ -264,30 +259,37 @@ export default function TournamentDetailScreen() {
         <ScrollView
           className="flex-1"
           contentContainerStyle={{ padding: 16 }}
+          showsVerticalScrollIndicator={false}
         >
-          {/* Placeholder para contenido */}
-          <View
-            className="p-6 rounded-2xl items-center"
-            style={{ backgroundColor: colors.surface }}
-          >
-            <Ionicons
-              name="document-text-outline"
-              size={48}
-              color={colors.textSecondary}
+          {activeSection && id ? (
+            <TournamentSectionContent
+              section={activeSection}
+              tournamentId={id}
             />
-            <Text
-              className="text-lg font-semibold mt-4 mb-2"
-              style={{ color: colors.text }}
+          ) : (
+            <View
+              className="p-6 rounded-2xl items-center"
+              style={{ backgroundColor: colors.surface }}
             >
-              {activeSection && getSectionLabel(activeSection)}
-            </Text>
-            <Text
-              className="text-center"
-              style={{ color: colors.textSecondary }}
-            >
-              El contenido de esta sección se mostrará aquí
-            </Text>
-          </View>
+              <Ionicons
+                name="document-text-outline"
+                size={48}
+                color={colors.textSecondary}
+              />
+              <Text
+                className="text-lg font-semibold mt-4 mb-2"
+                style={{ color: colors.text }}
+              >
+                Sin contenido
+              </Text>
+              <Text
+                className="text-center"
+                style={{ color: colors.textSecondary }}
+              >
+                No hay información disponible
+              </Text>
+            </View>
+          )}
         </ScrollView>
       </View>
     </>

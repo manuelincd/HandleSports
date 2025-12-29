@@ -3,6 +3,8 @@ export type Team = {
   name: string;
   logoUrl?: string;
   tournamentId: string;
+  captain?: string;
+  players?: number;
   stats?: {
     played: number;
     won: number;
@@ -10,6 +12,7 @@ export type Team = {
     lost: number;
     goalsFor: number;
     goalsAgainst: number;
+    goalDifference: number;
     points: number;
   };
 };

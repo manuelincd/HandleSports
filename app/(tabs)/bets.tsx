@@ -10,7 +10,7 @@ export default function BetsScreen() {
     const colors = useThemeColors();
     return (
         <Screen>
-            
+            <Text style={{ color: colors.text }}>Apuestas</Text>
         </Screen>
     );
 }

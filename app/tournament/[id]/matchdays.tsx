@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native'
 import React from 'react'
 
-export default function stats() {
+export default function matchdays() {
   return (
     <View>
-      <Text>stats</Text>
+      <Text>matchdays</Text>
     </View>
   )
 }

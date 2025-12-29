@@ -6,7 +6,7 @@ import { ManageOptionCard } from "@/components/tournaments/ManageOptionCard";
 import { useThemeColors } from "@/theme/useThemeColors";
 import { TournamentFormat } from "@/types/Tournament";
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -94,6 +94,7 @@ export default function TournamentManageScreen() {
   const colors = useThemeColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const tournament = TOURNAMENTS.find((t) => t.id === id);
+  const router = useRouter();
   const insets = useSafeAreaInsets();
 
   if (!tournament) {
@@ -114,36 +115,57 @@ export default function TournamentManageScreen() {
 
   return (
     <>
+      {/* Ocultar header nativo */}
       <Stack.Screen
         options={{
-          title: "Gestionar Torneo",
-          headerStyle: {
-            backgroundColor: colors.surface,
-          },
-          headerTintColor: colors.text,
-          headerShadowVisible: false,
+          headerShown: false,
         }}
       />
 
-      <ScrollView
+      <View 
         className="flex-1"
         style={{ backgroundColor: colors.background }}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
       >
-        {/* Header con info del torneo */}
-        <TournamentHeader
-          tournament={tournament}
-          showStats
-          stats={{
-            teams: tournament.teamsCount,
-            matches: 0,
-            rounds: 0,
+        {/* Header personalizado */}
+        <View
+          className="px-4 pb-4"
+          style={{
+            backgroundColor: colors.surface,
+            paddingTop: insets.top + 8,
           }}
-        />
+        >
+          {/* Botón de regresar + Título */}
+          <View className="flex-row items-center mb-4">
+            <Pressable
+              onPress={() => router.back()}
+              className="p-2 -ml-2 rounded-full mr-2"
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
+            </Pressable>
+            <Text
+              className="text-xl font-bold"
+              style={{ color: colors.text }}
+            >
+              Eventos
+            </Text>
+          </View>
 
-        {/* Badge de formato */}
-        <View className="px-4 py-3" style={{ backgroundColor: colors.surface }}>
-          <View className="self-start">
+          {/* Info del torneo */}
+          <TournamentHeader
+            tournament={tournament}
+            showStats
+            stats={{
+              teams: tournament.teamsCount,
+              matches: 0,
+              rounds: 0,
+            }}
+          />
+
+          {/* Badge de formato */}
+          <View className="mt-3 self-start">
             <View
               className="flex-row items-center px-3 py-1.5 rounded-full"
               style={{ backgroundColor: colors.primaryLight }}
@@ -170,53 +192,59 @@ export default function TournamentManageScreen() {
           </View>
         </View>
 
-        {/* Opciones de gestión */}
-        <View className="p-4">
-          <Text
-            className="text-sm font-semibold mb-3"
-            style={{ color: colors.textSecondary }}
-          >
-            OPCIONES DE GESTIÓN
-          </Text>
-
-          {manageOptions.map((option) => (
-            <ManageOptionCard
-              key={option.id}
-              title={option.title}
-              description={option.description}
-              icon={option.icon}
-              route={`/(tabs)/tournaments/${id}/${option.id}`}
-              color={option.color}
-            />
-          ))}
-        </View>
-
-        {/* Acciones peligrosas */}
-        <View className="p-4">
-          <Text
-            className="text-sm font-semibold mb-3"
-            style={{ color: colors.textSecondary }}
-          >
-            ZONA PELIGROSA
-          </Text>
-
-          <Pressable
-            className="flex-row items-center justify-center p-4 rounded-2xl"
-            style={({ pressed }) => ({
-              backgroundColor: `${colors.error}20`,
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <Ionicons name="trash-outline" size={20} color={colors.error} />
+        {/* Contenido scrolleable */}
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Opciones de gestión */}
+          <View className="p-4">
             <Text
-              className="ml-2 font-semibold"
-              style={{ color: colors.error }}
+              className="text-sm font-semibold mb-3"
+              style={{ color: colors.textSecondary }}
             >
-              Eliminar Torneo
+              OPCIONES DE GESTIÓN
             </Text>
-          </Pressable>
-        </View>
-      </ScrollView>
+
+            {manageOptions.map((option) => (
+              <ManageOptionCard
+                key={option.id}
+                title={option.title}
+                description={option.description}
+                icon={option.icon}
+                route={`tournament/${id}/${option.id}`}
+                color={option.color}
+              />
+            ))}
+          </View>
+
+          {/* Acciones peligrosas */}
+          <View className="p-4">
+            <Text
+              className="text-sm font-semibold mb-3"
+              style={{ color: colors.textSecondary }}
+            >
+              ZONA PELIGROSA
+            </Text>
+
+            <Pressable
+              className="flex-row items-center justify-center p-4 rounded-2xl"
+              style={({ pressed }) => ({
+                backgroundColor: `${colors.error}20`,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Ionicons name="trash-outline" size={20} color={colors.error} />
+              <Text
+                className="ml-2 font-semibold"
+                style={{ color: colors.error }}
+              >
+                Eliminar Torneo
+              </Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </View>
     </>
   );
 }

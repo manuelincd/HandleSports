@@ -8,5 +8,6 @@ export type Match = {
   date: Date;
   location?: string;
   round?: number;
-  status: 'scheduled' | 'live' | 'finished' | 'cancelled';
+  matchday?: number;
+  status: 'scheduled' | 'live' | 'finished' | 'cancelled' | 'postponed';
 };

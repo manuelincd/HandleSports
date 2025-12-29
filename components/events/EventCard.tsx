@@ -19,7 +19,7 @@ export function EventCard({ tournament }: Props) {
   return (
     <Pressable
       onPress={() =>
-        router.push(`/(tabs)/tournaments/${tournament.id}/manage`)
+        router.push(`/tournament/${tournament.id}/manage`)
       }
       className="rounded-2xl p-4 mb-4"
       style={({ pressed }) => ({
@@ -108,7 +108,7 @@ export function EventCard({ tournament }: Props) {
         <Pressable
           onPress={(e) => {
             e.stopPropagation();
-            router.push(`/(tabs)/tournaments/${tournament.id}/edit`);
+            router.push(`/tournament/${tournament.id}/edit`);
           }}
           className="flex-1 flex-row items-center justify-center py-2 rounded-lg"
           style={{ backgroundColor: colors.background }}
@@ -125,7 +125,7 @@ export function EventCard({ tournament }: Props) {
         <Pressable
           onPress={(e) => {
             e.stopPropagation();
-            router.push(`/(tabs)/tournaments/${tournament.id}/matches`);
+            router.push(`/tournament/${tournament.id}/matches`);
           }}
           className="flex-1 flex-row items-center justify-center py-2 rounded-lg"
           style={{ backgroundColor: colors.primary }}
