@@ -7,9 +7,9 @@ export const TEAMS: Team[] = [
     id: "1",
     name: "Real Madrid",
     tournamentId: "1",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg",
     captain: "Sergio Ramos",
     players: 25,
+    logoUrl: null,
     stats: {
       played: 10,
       won: 7,
@@ -25,9 +25,9 @@ export const TEAMS: Team[] = [
     id: "2",
     name: "Barcelona",
     tournamentId: "1",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/en/4/47/FC_Barcelona_%28crest%29.svg",
     captain: "Lionel Messi",
     players: 25,
+    logoUrl: null,
     stats: {
       played: 10,
       won: 6,
@@ -43,9 +43,9 @@ export const TEAMS: Team[] = [
     id: "3",
     name: "Atlético Madrid",
     tournamentId: "1",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/en/c/c1/Atletico_Madrid_logo.svg",
     captain: "Koke",
     players: 23,
+    logoUrl: null,
     stats: {
       played: 10,
       won: 5,
@@ -61,9 +61,9 @@ export const TEAMS: Team[] = [
     id: "4",
     name: "Sevilla",
     tournamentId: "1",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/en/3/3b/Sevilla_FC_logo.svg",
     captain: "Jesús Navas",
     players: 24,
+    logoUrl: null,
     stats: {
       played: 10,
       won: 4,
@@ -79,6 +79,9 @@ export const TEAMS: Team[] = [
     id: "5",
     name: "Valencia",
     tournamentId: "1",
+    captain: null,
+    players: 24,
+    logoUrl: null,
     stats: {
       played: 10,
       won: 3,
@@ -95,6 +98,9 @@ export const TEAMS: Team[] = [
     id: "6",
     name: "Lakers",
     tournamentId: "2",
+    captain: null,
+    players: 12,
+    logoUrl: null,
     stats: {
       played: 8,
       won: 6,
@@ -110,6 +116,9 @@ export const TEAMS: Team[] = [
     id: "7",
     name: "Warriors",
     tournamentId: "2",
+    captain: null,
+    players: 12,
+    logoUrl: null,
     stats: {
       played: 8,
       won: 5,

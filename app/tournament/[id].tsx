@@ -1,15 +1,17 @@
-
-import { TOURNAMENTS } from "@/data/tournaments";
+import { TournamentSectionContent } from "@/components/tournaments/TournamentSectionContent";
 import { SPORTS } from "@/data/sports";
 import { useFavoritesStore } from "@/store/useFavorites";
 import { useThemeColors } from "@/theme/useThemeColors";
 import { TournamentSection } from "@/types/Tournament";
-import { TournamentSectionContent } from "@/components/tournaments/TournamentSectionContent";
+import { TournamentFormat } from "@/types/Tournament"; // Asegúrate de importar esto
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
-import { Image, Pressable, ScrollView, Text, View } from "react-native";
+import { useEffect, useState, useMemo } from "react";
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+// 1. IMPORTAR EL STORE DE TORNEOS
+import { useTournamentsStore } from "@/store/useTournaments";
 
 function getSectionLabel(section: TournamentSection): string {
   const labels: Record<TournamentSection, string> = {
@@ -17,26 +19,88 @@ function getSectionLabel(section: TournamentSection): string {
     standings: "Tabla",
     teams: "Equipos",
     stats: "Estadísticas",
-    bracket: "Cuadro",
-    groups: "Grupos",
+    bracket: "Fase Final", // O "Cuadro"
+    groups: "Fase de Grupos",
   };
   return labels[section];
+}
+
+// --- 1. NUEVA FUNCIÓN DE LÓGICA ---
+// Define qué pestañas mostrar según el formato del torneo
+function getSectionsForFormat(format: TournamentFormat): TournamentSection[] {
+  // Secciones base que TODOS tienen
+  const baseSections: TournamentSection[] = ["teams", "matchdays"];
+
+  switch (format) {
+    case "league":
+      // Liga: Equipos, Jornadas, Tabla, Estadísticas
+      return [...baseSections, "standings", "stats"];
+    
+    case "knockout":
+      // Eliminatoria: Equipos, Jornadas, Cuadro (Bracket), Estadísticas
+      return [...baseSections, "bracket", "stats"];
+    
+    case "mixed":
+      // Mixto: Equipos, Jornadas, Grupos, Cuadro, Estadísticas
+      return [...baseSections, "groups", "bracket", "stats"];
+      
+    default:
+      return baseSections;
+  }
 }
 
 const placeholder = require("@/assets/images/tournament-placeholder.png");
 
 export default function TournamentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const tournament = TOURNAMENTS.find((t) => t.id === id);
   const colors = useThemeColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  // 2. CONEXIÓN CON EL STORE
+  const { tournaments, isLoading, fetchTournaments } = useTournamentsStore();
   const { isFavorite, toggleFavorite } = useFavoritesStore();
 
-  const [activeSection, setActiveSection] = useState(
-    tournament?.sections[0]
-  );
+  // Buscamos el torneo en el estado global
+  const tournament = tournaments.find((t) => t.id === id);
 
+  // Estado para la sección activa (Tab)
+  const [activeSection, setActiveSection] = useState<TournamentSection | null>(null);
+
+  // 3. EFECTO: CARGAR DATOS SI NO EXISTEN
+  useEffect(() => {
+    // Si no encontramos el torneo en la lista local y no está cargando, refrescamos desde Firebase
+    if (!tournament && !isLoading) {
+      fetchTournaments();
+    }
+  }, [id, tournament]);
+
+  // --- 2. CALCULAR SECCIONES DINÁMICAMENTE ---
+  const sections = useMemo(() => {
+    if (!tournament) return [];
+    return getSectionsForFormat(tournament.format);
+  }, [tournament]);
+
+  // 4. EFECTO: INICIALIZAR LA TAB ACTIVA
+  useEffect(() => {
+    if (tournament && !activeSection && sections.length > 0) {
+      const defaultSection = sections.includes("matchdays") ? "matchdays" : sections[0];
+      setActiveSection(defaultSection);
+    }
+  }, [tournament, sections]);
+
+  const sport = tournament ? SPORTS.find((s) => s.id === tournament.sportId) : null;
+
+  // 5. VISTA DE CARGA
+  if (isLoading && !tournament) {
+    return (
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  // 6. VISTA DE NO ENCONTRADO
   if (!tournament) {
     return (
       <View
@@ -71,8 +135,7 @@ export default function TournamentDetailScreen() {
     );
   }
 
-  const sport = SPORTS.find((s) => s.id === tournament.sportId);
-
+  // 7. RENDERIZADO PRINCIPAL
   return (
     <>
       <Stack.Screen
@@ -130,7 +193,7 @@ export default function TournamentDetailScreen() {
                   className="text-sm"
                   style={{ color: colors.textSecondary }}
                 >
-                  {sport?.name}
+                  {sport?.name || "Deporte Desconocido"}
                 </Text>
               </View>
 
@@ -222,7 +285,7 @@ export default function TournamentDetailScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 8 }}
           >
-            {tournament.sections.map((section) => {
+            {sections.map((section) => {
               const isActive = activeSection === section;
 
               return (

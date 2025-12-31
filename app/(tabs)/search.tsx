@@ -1,12 +1,17 @@
 import { Screen } from "@/components/Screen";
 import { SportChip } from "@/components/SportChip";
 import { TournamentCard } from "@/components/TournamentCard";
-import { SPORTS } from "@/data/sports";
-import { TOURNAMENTS } from "@/data/tournaments";
+// 1. ELIMINAMOS DATA ESTÁTICA
+// import { SPORTS } from "@/data/sports"; 
+
+// 2. IMPORTAMOS LOS STORES REALES
+import { useTournamentsStore } from "@/store/useTournaments"; 
+import { useSportsStore } from "@/store/useSports"; // <--- Nuevo import
+
 import { useThemeColors } from "@/theme/useThemeColors";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
-import { ScrollView, Text, TextInput, View } from "react-native";
+import { useEffect, useState, useMemo } from "react";
+import { ScrollView, Text, TextInput, View, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function SearchScreen() {
@@ -15,8 +20,37 @@ export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSport, setSelectedSport] = useState("all");
 
-  // Filtrar torneos por búsqueda y deporte
-  const filteredTournaments = TOURNAMENTS.filter((tournament) => {
+  // 3. CONECTAMOS CON LOS STORES
+  const { 
+    tournaments, 
+    fetchTournaments, 
+    isLoading: isLoadingTournaments 
+  } = useTournamentsStore();
+
+  const { 
+    sports, 
+    fetchSports, 
+    isLoading: isLoadingSports 
+  } = useSportsStore();
+
+  // 4. CARGAR DATOS AL ENTRAR
+  useEffect(() => {
+    fetchTournaments();
+    fetchSports();
+  }, []);
+
+  // 5. CREAR LISTA DE DEPORTES PARA LA UI (Todos + Firebase)
+  const uiSportsList = useMemo(() => {
+    return [
+        { id: 'all', name: 'Todos', emoji: '🌍' }, // Opción manual
+        ...sports // Deportes dinámicos
+    ];
+  }, [sports]);
+
+  const isLoading = isLoadingTournaments || isLoadingSports;
+
+  // Filtrar torneos
+  const filteredTournaments = tournaments.filter((tournament) => {
     const matchesSearch = tournament.name
       .toLowerCase()
       .includes(searchQuery.toLowerCase()) ||
@@ -39,7 +73,6 @@ export default function SearchScreen() {
           backgroundColor: colors.surface 
         }}
       >
-        {/* Título */}
         <Text 
           className="text-2xl font-bold mb-4"
           style={{ color: colors.text }}
@@ -47,7 +80,6 @@ export default function SearchScreen() {
           Buscar Torneos
         </Text>
 
-        {/* Barra de búsqueda */}
         <View
           className="flex-row items-center px-4 py-4 rounded-xl "
           style={{ backgroundColor: colors.background }}
@@ -88,7 +120,7 @@ export default function SearchScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Filtros por deporte */}
+        {/* Filtros por deporte (DINÁMICO) */}
         <View className="mb-6">
           <Text 
             className="text-sm font-semibold mb-3"
@@ -101,7 +133,7 @@ export default function SearchScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingRight: 16 }}
           >
-            {SPORTS.map((sport) => (
+            {uiSportsList.map((sport) => (
               <SportChip
                 key={sport.id}
                 label={sport.name}
@@ -124,7 +156,11 @@ export default function SearchScreen() {
         )}
 
         {/* Lista de torneos */}
-        {filteredTournaments.length > 0 ? (
+        {isLoading ? (
+            <View className="py-10">
+                <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+        ) : filteredTournaments.length > 0 ? (
           filteredTournaments.map((tournament) => (
             <TournamentCard
               key={tournament.id}
@@ -132,7 +168,6 @@ export default function SearchScreen() {
             />
           ))
         ) : (
-          // Estado vacío
           <View className="items-center justify-center py-12">
             <Ionicons
               name="search-outline"

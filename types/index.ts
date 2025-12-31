@@ -5,3 +5,4 @@ export * from './Match';
 export * from './User';
 export * from './Matchday';
 export * from './Group';
+export * from './Player';

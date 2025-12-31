@@ -17,6 +17,15 @@ export const TOURNAMENTS: Tournament[] = [
     location: "USA",
     teamsCount: 2,
     format: "knockout",
-    sections: ["teams", "bracket", "stats"],
+    sections: ["teams", "bracket", "matchdays", "stats"],
+  },
+  {
+    id: "3", 
+    name: "NFL Championship",
+    sportId: "football",
+    location: "USA",
+    teamsCount: 2,
+    format: "mixed",
+    sections: ["teams", "bracket", "matchdays", "stats"],
   },
 ];

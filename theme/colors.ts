@@ -1,8 +1,8 @@
 export const colors = {
   light: {
-    background: "#FFFFFF",
-    surface: "#F9FAFB",       
-    surfaceAlt: "#F3F4F6",    
+    background: "#ffffffff",
+    surface: "#e1eaf4ff",       
+    surfaceAlt: "rgba(243, 244, 246, 1)",    
     text: "#111827",
     textSecondary: "#6B7280",
     textMuted: "#9CA3AF",

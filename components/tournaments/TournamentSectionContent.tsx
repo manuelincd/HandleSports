@@ -1,5 +1,3 @@
-// components/tournaments/TournamentSectionContent.tsx
-
 import { TournamentSection } from "@/types/Tournament";
 import { TeamsSection } from "./sections/TeamsSection";
 import { StandingsSection } from "./sections/StandingsSection";

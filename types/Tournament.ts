@@ -2,23 +2,23 @@
 import { Sport } from "./Sport";
 
 export type TournamentFormat =
-  | "league"        // Liga (todos vs todos)
-  | "knockout"      // Eliminación directa
-  | "mixed";        // Combinado (grupos + eliminación)
+  | "league"        
+  | "knockout"      
+  | "mixed";        
 
 export type TournamentSection =
-  | "matchdays"     // Jornadas/Rondas
-  | "standings"     // Tabla de posiciones
-  | "teams"         // Equipos
-  | "stats"         // Estadísticas
-  | "bracket"       // Cuadro de eliminación
-  | "groups";       // Grupos (para formato mixto)
+  | "matchdays"     
+  | "standings"     
+  | "teams"         
+  | "stats"         
+  | "bracket"       
+  | "groups";       
 
 export type TournamentStatus = 
-  | "draft"         // En creación
-  | "upcoming"      // Próximo a iniciar
-  | "live"          // En curso
-  | "finished";     // Finalizado
+  | "draft"         
+  | "upcoming"      
+  | "live"          
+  | "finished";     
 
 export type Tournament = {
   id: string;
@@ -26,6 +26,7 @@ export type Tournament = {
   sportId: Sport["id"];
   location: string;
   teamsCount: number;
+  ownerId: string;
   logoUrl?: string;
   
   format: TournamentFormat;
@@ -35,9 +36,9 @@ export type Tournament = {
   
   // Metadata
   createdBy?: string;
-  createdAt?: Date;
-  startDate?: Date;
-  endDate?: Date;
+  createdAt?: string;
+  startDate?: string;
+  endDate?: string;
   
   // Stats calculadas
   matchesCount?: number;
