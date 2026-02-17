@@ -1,14 +1,19 @@
-import { SPORTS } from "@/data/sports";
 import { useThemeColors } from "@/theme/useThemeColors";
 import { Tournament } from "@/types/Tournament";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Image, Pressable, Text, View } from "react-native";
-// 1. Nuevos imports
 import { useMatchesStore } from "@/store/useMatches";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
+
+// FIREBASE
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const placeholder = require("@/assets/images/tournament-placeholder.png");
+
+// CACHÉ SIMPLE
+const sportCache: Record<string, { name: string; emoji: string }> = {};
 
 type Props = {
   tournament: Tournament;
@@ -17,17 +22,50 @@ type Props = {
 export function EventCard({ tournament }: Props) {
   const colors = useThemeColors();
   const router = useRouter();
-  const sport = SPORTS.find((s) => s.id === tournament.sportId);
+  
+  const [sportData, setSportData] = useState<{ name: string; emoji: string } | null>(null);
 
-  // 2. Suscribirse al Store de Partidos
   const allMatches = useMatchesStore((state) => state.matches);
 
-  // 3. Cálculo dinámico de Jornadas
-  // Usamos useMemo para que solo se recalcule si cambian los partidos o el ID
+  // 1. OBTENER EL NOMBRE DE LA TEMPORADA ACTIVA
+  const activeSeasonName = useMemo(() => {
+      if (!tournament.activeSeasonId || !tournament.seasons) return null;
+      return tournament.seasons.find(s => s.id === tournament.activeSeasonId)?.name;
+  }, [tournament]);
+
+  // CARGAR EL DEPORTE
+  useEffect(() => {
+    const loadSport = async () => {
+        const sportId = tournament.sportId;
+        if (!sportId) return;
+
+        if (sportCache[sportId]) {
+            setSportData(sportCache[sportId]);
+            return;
+        }
+
+        try {
+            const docRef = doc(db, "sports", sportId);
+            const docSnap = await getDoc(docRef);
+            
+            if (docSnap.exists()) {
+                const data = docSnap.data() as { name: string; emoji: string };
+                sportCache[sportId] = data;
+                setSportData(data);
+            } else {
+                setSportData({ name: "Desconocido", emoji: "❓" });
+            }
+        } catch (error) {
+            console.error("Error cargando deporte en card:", error);
+        }
+    };
+
+    loadSport();
+  }, [tournament.sportId]);
+
+
   const stats = useMemo(() => {
     const tournamentMatches = allMatches.filter(m => m.tournamentId === tournament.id);
-    
-    // Set crea una lista de valores únicos (elimina duplicados)
     const uniqueMatchdays = new Set(tournamentMatches.map(m => m.matchday).filter(Boolean));
     
     return {
@@ -75,10 +113,26 @@ export function EventCard({ tournament }: Props) {
             >
               {tournament.name}
             </Text>
+
+            {/* --- 2. AQUÍ ESTÁ EL BADGE DE TEMPORADA --- */}
+            {activeSeasonName && (
+                  <View 
+                    className="self-start px-3 py-0.5 rounded-full border mb-2"
+                    style={{ borderColor: colors.primary }}
+                  >
+                      <Text 
+                        className="text-[10px] font-bold uppercase" 
+                        style={{ color: colors.primary }}
+                      >
+                          {activeSeasonName}
+                      </Text>
+                  </View>
+            )}
+
             <View className="flex-row items-center">
-              <Text className="mr-2 text-base">{sport?.emoji}</Text>
+              <Text className="mr-2 text-base">{sportData?.emoji || "..."}</Text>
               <Text className="text-sm font-medium" style={{ color: colors.textSecondary }}>
-                {sport?.name}
+                {sportData?.name || "Cargando..."}
               </Text>
             </View>
           </View>
@@ -104,12 +158,9 @@ export function EventCard({ tournament }: Props) {
             </Text>
           </View>
 
-          {/* --- CAMBIO AQUÍ: JORNADAS --- */}
           <View className="items-center flex-1 border-r" style={{ borderColor: colors.border }}>
-            {/* Cambiamos ícono a Calendario */}
             <Ionicons name="calendar-outline" size={20} color={colors.primary} />
             <Text className="text-lg font-bold mt-1" style={{ color: colors.text }}>
-              {/* Usamos el valor calculado */}
               {stats.matchdays}
             </Text>
             <Text className="text-[10px] uppercase font-bold tracking-wide" style={{ color: colors.textSecondary }}>

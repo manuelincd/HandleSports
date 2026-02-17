@@ -1,6 +1,3 @@
-// app/(tabs)/tournaments/[id]/edit.tsx
-
-import { SPORTS } from "@/data/sports";
 import { TournamentFormat } from "@/types/Tournament";
 import { useThemeColors } from "@/theme/useThemeColors";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,11 +12,13 @@ import {
   View,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator, // <--- Importamos para el spinner de carga
+  ActivityIndicator, 
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// 1. IMPORTAMOS EL STORE
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
 import { useTournamentsStore } from "@/store/useTournaments";
 
 const FORMAT_OPTIONS = [
@@ -35,6 +34,16 @@ type FormData = {
   teamsCount: string;
   format: TournamentFormat;
   logoUrl: string;
+  // Nuevos campos
+  winPoints: string;
+  drawPoints: string;
+  lossPoints: string;
+};
+
+type Sport = {
+    id: string;
+    name: string;
+    emoji: string;
 };
 
 export default function EditTournamentScreen() {
@@ -43,16 +52,14 @@ export default function EditTournamentScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // 2. CONECTAMOS CON EL STORE
   const { tournaments, updateTournament, fetchTournaments } = useTournamentsStore();
   const tournament = tournaments.find((t) => t.id === id);
 
-  // Estado para controlar el guardado
   const [isSaving, setIsSaving] = useState(false);
+  
+  const [sports, setSports] = useState<Sport[]>([]);
+  const [isLoadingSports, setIsLoadingSports] = useState(true);
 
-  // Inicializamos el formulario. 
-  // Nota: Si recargas la página y tournament es undefined, esto podría fallar,
-  // por eso añadimos el useEffect abajo.
   const [formData, setFormData] = useState<FormData>({
     name: tournament?.name || "",
     sportId: tournament?.sportId || "",
@@ -60,16 +67,40 @@ export default function EditTournamentScreen() {
     teamsCount: tournament?.teamsCount.toString() || "",
     format: tournament?.format || "league",
     logoUrl: tournament?.logoUrl || "",
+    // Inicializamos con valores del torneo o por defecto
+    winPoints: tournament?.winPoints?.toString() ?? "3",
+    drawPoints: tournament?.drawPoints?.toString() ?? "1",
+    lossPoints: tournament?.lossPoints?.toString() ?? "0",
   });
 
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Si entramos directo por URL y no hay datos, intentamos cargar
+  useEffect(() => {
+    const fetchSports = async () => {
+        try {
+            const q = query(collection(db, "sports"), orderBy("name"));
+            const querySnapshot = await getDocs(q);
+            
+            const sportsData = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })) as Sport[];
+
+            setSports(sportsData);
+        } catch (error) {
+            console.error("Error cargando deportes:", error);
+        } finally {
+            setIsLoadingSports(false);
+        }
+    };
+
+    fetchSports();
+  }, []);
+
   useEffect(() => {
     if (!tournament) fetchTournaments();
   }, [id, tournament]);
 
-  // Si la info del torneo llega después (por el fetch), actualizamos el formulario
   useEffect(() => {
     if (tournament && !hasChanges) {
         setFormData({
@@ -79,6 +110,10 @@ export default function EditTournamentScreen() {
             teamsCount: tournament.teamsCount.toString(),
             format: tournament.format,
             logoUrl: tournament.logoUrl || "",
+            // Actualizamos si llegan datos de la BD
+            winPoints: tournament.winPoints?.toString() ?? "3",
+            drawPoints: tournament.drawPoints?.toString() ?? "1",
+            lossPoints: tournament.lossPoints?.toString() ?? "0",
         });
     }
   }, [tournament]);
@@ -88,7 +123,6 @@ export default function EditTournamentScreen() {
     setHasChanges(true);
   }, []);
 
-  // 3. GUARDAR CAMBIOS (ASÍNCRONO)
   const handleSave = async () => {
     if (!formData.name.trim()) return Alert.alert("Error", "El nombre es obligatorio");
     if (!formData.sportId) return Alert.alert("Error", "Selecciona un deporte");
@@ -102,9 +136,12 @@ export default function EditTournamentScreen() {
             teamsCount: parseInt(formData.teamsCount) || 0,
             format: formData.format,
             logoUrl: formData.logoUrl,
+            // Guardamos los puntos como números
+            winPoints: parseInt(formData.winPoints) || 3,
+            drawPoints: parseInt(formData.drawPoints) || 1,
+            lossPoints: parseInt(formData.lossPoints) || 0,
         });
         
-        // Regresamos solo si tuvo éxito
         router.back();
     } catch (error) {
         Alert.alert("Error", "No se pudieron guardar los cambios.");
@@ -126,7 +163,6 @@ export default function EditTournamentScreen() {
 
   const isFormValid = formData.name.trim() && formData.sportId && formData.location.trim();
 
-  // Loading state si no hay torneo aún
   if (!tournament) {
       return (
         <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
@@ -202,41 +238,46 @@ export default function EditTournamentScreen() {
                 />
             </View>
 
-            {/* Deporte */}
+            {/* Deporte (CARGADO DINÁMICAMENTE) */}
             <View className="mb-6">
                 <Text className="text-xs mb-3 font-bold ml-1 uppercase" style={{ color: colors.textSecondary }}>Deporte</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 16 }}>
-                {SPORTS.filter((s) => s.id !== "all").map((sport) => {
-                    const isSelected = formData.sportId === sport.id;
-                    return (
-                        <Pressable
-                            key={sport.id}
-                            onPress={() => handleChange("sportId", sport.id)}
-                            className="mr-3"
-                        >
-                            <View 
-                                className="px-5 py-3 rounded-2xl flex-row items-center border"
-                                style={{
-                                    backgroundColor: isSelected ? colors.primary : colors.surface,
-                                    borderColor: isSelected ? colors.primary : colors.border,
-                                    borderWidth: 1, 
-                                }}
+                
+                {isLoadingSports ? (
+                    <ActivityIndicator color={colors.primary} style={{ alignSelf: "flex-start", marginLeft: 10 }} />
+                ) : (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 16 }}>
+                    {sports.map((sport) => {
+                        const isSelected = formData.sportId === sport.id;
+                        return (
+                            <Pressable
+                                key={sport.id}
+                                onPress={() => handleChange("sportId", sport.id)}
+                                className="mr-3"
                             >
-                                <Text className="mr-2 text-xl">{sport.emoji}</Text>
-                                <Text 
-                                    className="font-bold text-sm"
-                                    style={{ color: isSelected ? "#fff" : colors.text }}
+                                <View 
+                                    className="px-5 py-3 rounded-2xl flex-row items-center border"
+                                    style={{
+                                        backgroundColor: isSelected ? colors.primary : colors.surface,
+                                        borderColor: isSelected ? colors.primary : colors.border,
+                                        borderWidth: 1, 
+                                    }}
                                 >
-                                    {sport.name}
-                                </Text>
-                                {isSelected && (
-                                    <Ionicons name="checkmark-circle" size={16} color="white" style={{ marginLeft: 6 }} />
-                                )}
-                            </View>
-                        </Pressable>
-                    );
-                })}
-                </ScrollView>
+                                    <Text className="mr-2 text-xl">{sport.emoji}</Text>
+                                    <Text 
+                                        className="font-bold text-sm"
+                                        style={{ color: isSelected ? "#fff" : colors.text }}
+                                    >
+                                        {sport.name}
+                                    </Text>
+                                    {isSelected && (
+                                        <Ionicons name="checkmark-circle" size={16} color="white" style={{ marginLeft: 6 }} />
+                                    )}
+                                </View>
+                            </Pressable>
+                        );
+                    })}
+                    </ScrollView>
+                )}
             </View>
 
             {/* Formato */}
@@ -330,9 +371,71 @@ export default function EditTournamentScreen() {
                 />
             </View>
 
+            {/* --- SECCIÓN DE PUNTOS --- */}
+            <View className="mb-8">
+                <Text className="text-xs font-bold mb-3 uppercase" style={{ color: colors.textSecondary }}>
+                    Sistema de Puntuación
+                </Text>
+                <View className="flex-row gap-3">
+                    {/* Ganar */}
+                    <View className="flex-1">
+                        <Text className="text-[10px] text-center mb-1 font-bold" style={{ color: colors.success }}>
+                            GANAR
+                        </Text>
+                        <TextInput 
+                            value={formData.winPoints}
+                            onChangeText={(t) => handleChange("winPoints", t.replace(/[^0-9]/g, ""))}
+                            keyboardType="number-pad"
+                            className="p-4 rounded-2xl text-center border font-bold text-lg"
+                            style={{ 
+                                backgroundColor: colors.surface, 
+                                borderColor: colors.border, 
+                                color: colors.text 
+                            }}
+                        />
+                    </View>
+                    
+                    {/* Empatar */}
+                    <View className="flex-1">
+                        <Text className="text-[10px] text-center mb-1 font-bold" style={{ color: "#EAB308" }}>
+                            EMPATAR
+                        </Text>
+                        <TextInput 
+                            value={formData.drawPoints}
+                            onChangeText={(t) => handleChange("drawPoints", t.replace(/[^0-9]/g, ""))}
+                            keyboardType="number-pad"
+                            className="p-4 rounded-2xl text-center border font-bold text-lg"
+                            style={{ 
+                                backgroundColor: colors.surface, 
+                                borderColor: colors.border, 
+                                color: colors.text 
+                            }}
+                        />
+                    </View>
+
+                    {/* Perder */}
+                    <View className="flex-1">
+                        <Text className="text-[10px] text-center mb-1 font-bold" style={{ color: colors.error }}>
+                            PERDER
+                        </Text>
+                        <TextInput 
+                            value={formData.lossPoints}
+                            onChangeText={(t) => handleChange("lossPoints", t.replace(/[^0-9]/g, ""))}
+                            keyboardType="number-pad"
+                            className="p-4 rounded-2xl text-center border font-bold text-lg"
+                            style={{ 
+                                backgroundColor: colors.surface, 
+                                borderColor: colors.border, 
+                                color: colors.text 
+                            }}
+                        />
+                    </View>
+                </View>
+            </View>
+
             </ScrollView>
             
-            {/* FOOTER - Ahora dentro del KeyboardAvoidingView */}
+            {/* FOOTER */}
             <View 
                 className="p-4 border-t"
                 style={{ 

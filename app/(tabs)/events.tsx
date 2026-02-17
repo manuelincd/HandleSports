@@ -5,11 +5,10 @@ import { useThemeColors } from "@/theme/useThemeColors";
 import { Ionicons } from "@expo/vector-icons";
 import BottomSheet from "@gorhom/bottom-sheet";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useMemo, useState } from "react"; // Agregado useMemo y useState
-import { ActivityIndicator, Alert, Animated, Pressable, Text, View, RefreshControl } from "react-native"; // Agregado RefreshControl
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Animated, Pressable, RefreshControl, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// STORES
 import { useAuthStore } from "@/store/useAuthStore";
 import { useMatchesStore } from "@/store/useMatches";
 import { useTournamentsStore } from "@/store/useTournaments";
@@ -22,10 +21,8 @@ export default function EventsScreen() {
   const bottomSheetRef = useRef<BottomSheet>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // CONEXIÓN CON FIREBASE
   const { user } = useAuthStore();
 
-  // 2. OBTENER LAS FUNCIONES DE FETCH
   const {
     tournaments,
     addTournament,
@@ -40,7 +37,6 @@ export default function EventsScreen() {
 
   const HEADER_HEIGHT = 56;
 
-  // 3. CARGAR TODO AL ENTRAR
   useEffect(() => {
     fetchTournaments();
     fetchMatches();
@@ -54,9 +50,6 @@ export default function EventsScreen() {
 
   const isLoading = loadingTournaments || loadingMatches;
 
-  // --- CORRECCIÓN CRÍTICA AQUÍ ---
-  // Usamos useMemo para filtrar.
-  // IMPORTANTE: El campo en Firebase es 'ownerId', no 'userId'.
   const myTournaments = useMemo(() => {
     if (!user) return [];
     return tournaments.filter(t => t.ownerId === user.uid);
@@ -84,19 +77,23 @@ export default function EventsScreen() {
   };
 
   const handleCreateTournament = async (data: any) => {
-    // addTournament ya maneja el ownerId internamente en el store
-    const newTournament = {
+    const initialSeasonId = `s_${Date.now()}`;
+    await addTournament({
       name: data.name,
       sportId: data.sportId,
       location: data.location,
       teamsCount: parseInt(data.teamsCount),
       format: data.format,
-      // status se pone automático en el store
-    };
-
-    await addTournament(newTournament);
-    // El store actualiza el estado local, no hace falta llamar a fetchTournaments de nuevo obligatoriamente,
-    // pero no hace daño para sincronizar IDs.
+      logoUrl: data.logoUrl || null,
+      seasons: [
+        {
+          id: initialSeasonId,
+          name: "Temporada 1",
+          isActive: true
+        }
+      ],
+      activeSeasonId: initialSeasonId,
+    });
   };
 
   return (
@@ -109,7 +106,7 @@ export default function EventsScreen() {
           paddingTop: insets.top,
           transform: [{ translateY: headerTranslateY }],
           borderBottomWidth: 1,
-          borderBottomColor: colors.border, // Un pequeño borde sutil al header
+          borderBottomColor: colors.border,
         }}
       >
         <Text className="text-2xl font-bold" style={{ color: colors.text }}>
@@ -132,7 +129,7 @@ export default function EventsScreen() {
         contentContainerStyle={{
           paddingTop: HEADER_HEIGHT + insets.top + 16,
           paddingHorizontal: 16,
-          paddingBottom: insets.bottom + 80, // Espacio extra para que no tape el tab bar
+          paddingBottom: insets.bottom + 80,
         }}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -141,13 +138,11 @@ export default function EventsScreen() {
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
         {/* LÓGICA DE VISTA */}
-
         {!user ? (
-          // ESTADO: INVITADO
           <View
             className="items-center justify-center py-12 px-4 rounded-[32px] mt-4 border border-dashed"
             style={{ backgroundColor: colors.surface, borderColor: colors.border }}
@@ -169,26 +164,22 @@ export default function EventsScreen() {
           </View>
 
         ) : isLoading && myTournaments.length === 0 ? (
-          // ESTADO: CARGANDO
           <View className="py-20">
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
 
         ) : myTournaments.length > 0 ? (
-          // ESTADO: USUARIO CON TORNEOS
           myTournaments.map((tournament) => (
-            // IMPORTANTE: Envolvemos en Pressable para ir a MANAGE
-            <Pressable 
-                key={tournament.id}
-                onPress={() => router.push(`/tournament/${tournament.id}/manage`)}
-                style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
+            <Pressable
+              key={tournament.id}
+              onPress={() => router.push(`/tournament/${tournament.id}/manage`)}
+              style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
             >
-                <EventCard tournament={tournament} />
+              <EventCard tournament={tournament} />
             </Pressable>
           ))
 
         ) : (
-          // ESTADO: USUARIO SIN TORNEOS (VACÍO)
           <View
             className="items-center justify-center py-12 px-4 rounded-[32px]"
             style={{ backgroundColor: colors.surface }}

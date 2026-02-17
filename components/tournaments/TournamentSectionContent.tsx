@@ -12,9 +12,10 @@ import { Ionicons } from "@expo/vector-icons";
 type Props = {
   section: TournamentSection;
   tournamentId: string;
+  seasonId?: string;
 };
 
-export function TournamentSectionContent({ section, tournamentId }: Props) {
+export function TournamentSectionContent({ section, tournamentId, seasonId }: Props) {
   const colors = useThemeColors();
 
   switch (section) {
@@ -22,13 +23,13 @@ export function TournamentSectionContent({ section, tournamentId }: Props) {
       return <TeamsSection tournamentId={tournamentId} />;
     
     case "matchdays":
-      return <MatchdaysSection tournamentId={tournamentId} />;
+      return <MatchdaysSection tournamentId={tournamentId} seasonId={seasonId}/>;
     
     case "standings":
-      return <StandingsSection tournamentId={tournamentId} />;
+      return <StandingsSection tournamentId={tournamentId} seasonId={seasonId} />;
     
     case "stats":
-      return <StatsSection tournamentId={tournamentId} />;
+      return <StatsSection tournamentId={tournamentId} seasonId={seasonId}/>;
     
     case "bracket":
       return <BracketSection tournamentId={tournamentId} />;

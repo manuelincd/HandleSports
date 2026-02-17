@@ -1,10 +1,6 @@
 import { Screen } from "@/components/Screen";
 import { SportChip } from "@/components/SportChip";
 import { TournamentCard } from "@/components/TournamentCard";
-// 1. ELIMINAMOS DATA ESTÁTICA
-// import { SPORTS } from "@/data/sports"; 
-
-// 2. IMPORTAMOS LOS STORES REALES
 import { useTournamentsStore } from "@/store/useTournaments"; 
 import { useSportsStore } from "@/store/useSports"; // <--- Nuevo import
 
@@ -20,7 +16,6 @@ export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSport, setSelectedSport] = useState("all");
 
-  // 3. CONECTAMOS CON LOS STORES
   const { 
     tournaments, 
     fetchTournaments, 
@@ -33,23 +28,19 @@ export default function SearchScreen() {
     isLoading: isLoadingSports 
   } = useSportsStore();
 
-  // 4. CARGAR DATOS AL ENTRAR
   useEffect(() => {
     fetchTournaments();
     fetchSports();
   }, []);
-
-  // 5. CREAR LISTA DE DEPORTES PARA LA UI (Todos + Firebase)
   const uiSportsList = useMemo(() => {
     return [
-        { id: 'all', name: 'Todos', emoji: '🌍' }, // Opción manual
-        ...sports // Deportes dinámicos
+        { id: 'all', name: 'Todos', emoji: '🌍' }, 
+        ...sports 
     ];
   }, [sports]);
 
   const isLoading = isLoadingTournaments || isLoadingSports;
 
-  // Filtrar torneos
   const filteredTournaments = tournaments.filter((tournament) => {
     const matchesSearch = tournament.name
       .toLowerCase()

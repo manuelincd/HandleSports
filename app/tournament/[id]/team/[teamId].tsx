@@ -9,7 +9,6 @@ import { useTeamsStore } from "@/store/useTeams";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TeamPlayersScreen() {
-  // 1. CORRECCIÓN: Mapeamos 'id' (de la URL) a 'tournamentId'
   const { teamId, id: tournamentId } = useLocalSearchParams<{ teamId: string, id: string }>();
   
   const colors = useThemeColors();

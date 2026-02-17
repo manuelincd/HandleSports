@@ -2,14 +2,9 @@ import { AppHeader } from "@/components/AppHeader";
 import { Screen } from "@/components/Screen";
 import { SportChip } from "@/components/SportChip";
 import { TournamentCard } from "@/components/TournamentCard";
-
-// 1. ELIMINAMOS LA DATA ESTÁTICA
-// import { SPORTS } from "@/data/sports"; <-- YA NO SE USA
-
-// 2. IMPORTAMOS LOS STORES
 import { useTournamentsStore } from "@/store/useTournaments";
 import { useFavoritesStore } from "@/store/useFavorites";
-import { useSportsStore } from "@/store/useSports"; // <--- NUEVO STORE
+import { useSportsStore } from "@/store/useSports"; 
 
 import { useThemeColors } from "@/theme/useThemeColors";
 import { Ionicons } from "@expo/vector-icons";

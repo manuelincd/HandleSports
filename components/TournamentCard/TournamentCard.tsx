@@ -1,12 +1,17 @@
 import { View, Text, Image, Pressable } from "react-native";
 import { Tournament } from "@/types/Tournament";
 import { useThemeColors } from "@/theme/useThemeColors";
-import { SPORTS } from "@/data/sports";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useFavoritesStore } from "@/store/useFavorites";
+import { useEffect, useState, useMemo } from "react";
+
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const placeholder = require("@/assets/images/tournament-placeholder.png");
+
+const sportCache: Record<string, { name: string; emoji: string }> = {};
 
 type Props = {
   tournament: Tournament;
@@ -15,10 +20,45 @@ type Props = {
 export function TournamentCard({ tournament }: Props) {
   const colors = useThemeColors();
   const router = useRouter();
-  const sport = SPORTS.find(s => s.id === tournament.sportId);
+  
+  const [sportData, setSportData] = useState<{ name: string; emoji: string } | null>(null);
   
   const { isFavorite, toggleFavorite } = useFavoritesStore();
   const isFav = isFavorite(tournament.id);
+
+  const activeSeasonName = useMemo(() => {
+      if (!tournament.activeSeasonId || !tournament.seasons) return null;
+      return tournament.seasons.find(s => s.id === tournament.activeSeasonId)?.name;
+  }, [tournament]);
+
+  useEffect(() => {
+    const loadSport = async () => {
+        const sportId = tournament.sportId;
+        if (!sportId) return;
+
+        if (sportCache[sportId]) {
+            setSportData(sportCache[sportId]);
+            return;
+        }
+
+        try {
+            const docRef = doc(db, "sports", sportId);
+            const docSnap = await getDoc(docRef);
+            
+            if (docSnap.exists()) {
+                const data = docSnap.data() as { name: string; emoji: string };
+                sportCache[sportId] = data;
+                setSportData(data);
+            } else {
+                setSportData({ name: "Desconocido", emoji: "❓" });
+            }
+        } catch (error) {
+            console.error("Error cargando deporte:", error);
+        }
+    };
+
+    loadSport();
+  }, [tournament.sportId]);
 
   const handlePress = () => {
     router.push(`/tournament/${tournament.id}`);
@@ -32,32 +72,24 @@ export function TournamentCard({ tournament }: Props) {
   return (
     <Pressable
       onPress={handlePress}
-      // 1. Movemos el margen aquí (espacio ENTRE tarjetas)
       className="mb-4" 
       style={({ pressed }) => ({
-        // Solo la animación de escala y opacidad va en el Pressable
         opacity: pressed ? 0.9 : 1,
         transform: [{ scale: pressed ? 0.98 : 1 }],
       })}
     >
-      {/* 2. CREAMOS UNA VIEW INTERNA PARA EL ESTILO VISUAL */}
-      {/* Esta View garantiza que el background.surface se renderice siempre */}
       <View 
         className="flex-row rounded-2xl px-4 py-6 border"
         style={{
-            // Color de fondo seguro
             backgroundColor: colors.surface,
-            // Borde sutil para contraste
             borderColor: colors.border,
-            // Sombra para elevación (hace que flote)
             shadowColor: "#000",
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.05,
             shadowRadius: 4,
-            elevation: 3, // Importante para Android
+            elevation: 3,
         }}
       >
-          {/* Imagen del torneo */}
           <View className="relative">
               <Image
                   source={
@@ -66,11 +98,10 @@ export function TournamentCard({ tournament }: Props) {
                           : placeholder
                   }
                   className="w-20 h-20 rounded-xl"
-                  style={{ backgroundColor: colors.background }} // Fondo gris mientras carga
+                  style={{ backgroundColor: colors.background }}
               />
           </View>
 
-          {/* Información del torneo */}
           <View className="flex-1 justify-center ml-4">
               <Text 
                   className="text-xl font-bold mb-1" 
@@ -80,13 +111,27 @@ export function TournamentCard({ tournament }: Props) {
                   {tournament.name}
               </Text>
 
+              {activeSeasonName && (
+                  <View 
+                    className="self-start px-3 py-0.5 rounded-full border mb-2"
+                    style={{ borderColor: colors.primary }}
+                  >
+                      <Text 
+                        className="text-[10px] font-bold uppercase" 
+                        style={{ color: colors.primary }}
+                      >
+                          {activeSeasonName}
+                      </Text>
+                  </View>
+              )}
+
               <View className="flex-row items-center mb-1">
-                  <Text className="text-base mr-1">{sport?.emoji}</Text>
+                  <Text className="text-base mr-1">{sportData?.emoji || "..."}</Text>
                   <Text 
                       className="text-base flex-1 font-medium" 
                       style={{ color: colors.textSecondary }}
                   >
-                      {sport?.name}
+                      {sportData?.name || "Cargando..."}
                   </Text>
               </View>
 
@@ -119,7 +164,6 @@ export function TournamentCard({ tournament }: Props) {
               </View>
           </View>
 
-          {/* Botón de favorito */}
           <View className="justify-center pl-2">
               <Pressable
                   onPress={handleFavoritePress}

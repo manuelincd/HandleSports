@@ -12,7 +12,6 @@ export default function BetsScreen() {
   const insets = useSafeAreaInsets();
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  // Altura consistente con tu AppHeader
   const HEADER_HEIGHT = 56;
   const headerTranslateY = scrollY.interpolate({
     inputRange: [0, HEADER_HEIGHT + insets.top],

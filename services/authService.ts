@@ -3,48 +3,61 @@ import {
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
   signOut,
-  updateProfile
+  updateProfile,
+  User
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 
+export interface UserProfile {
+    email: string;
+    displayName: string;
+    balance: number;
+    createdAt: string;
+    role: 'user' | 'admin';
+}
+
 export const authService = {
-  // 1. REGISTRO MEJORADO
-  register: async (email: string, pass: string, name?: string) => {
-    // A. Crear usuario en Auth System
+  register: async (email: string, pass: string, name?: string): Promise<User> => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
     const user = userCredential.user;
 
-    // B. Actualizar nombre visible (Display Name)
     if (name) {
         await updateProfile(user, { displayName: name });
+        await user.reload(); 
     }
 
-    // C. CREAR DOCUMENTO EN FIRESTORE (Aquí guardamos las monedas)
-    await setDoc(doc(db, "users", user.uid), {
-      email: user.email,
-      displayName: name || "Usuario",
-      balance: 1000, // <--- ¡Tus monedas para apuestas!
-      createdAt: new Date().toISOString(),
-      role: 'user' // Por si luego quieres admins
-    });
+    try {
+        await setDoc(doc(db, "users", user.uid), {
+            email: user.email,
+            displayName: name || "Usuario",
+            balance: 1000,
+            createdAt: new Date().toISOString(),
+            role: 'user'
+        });
+    } catch (error) {
+        console.error("Error creando perfil en Firestore:", error);
+    }
 
-    return user;
+    return auth.currentUser || user;
   },
 
-  // 2. LOGIN (Sin cambios, pero podríamos traer el balance aquí si quisieras)
-  login: async (email: string, pass: string) => {
+  login: async (email: string, pass: string): Promise<User> => {
     const userCredential = await signInWithEmailAndPassword(auth, email, pass);
     return userCredential.user;
   },
 
-  logout: async () => {
+  logout: async (): Promise<void> => {
     await signOut(auth);
   },
   
-  // Extra: Función para obtener datos del perfil (monedas, etc)
-  getUserProfile: async (uid: string) => {
-      const docRef = doc(db, "users", uid);
-      const docSnap = await getDoc(docRef);
-      return docSnap.exists() ? docSnap.data() : null;
+  getUserProfile: async (uid: string): Promise<UserProfile | null> => {
+      try {
+          const docRef = doc(db, "users", uid);
+          const docSnap = await getDoc(docRef);
+          return docSnap.exists() ? (docSnap.data() as UserProfile) : null;
+      } catch (error) {
+          console.error("Error obteniendo perfil:", error);
+          return null;
+      }
   }
 };

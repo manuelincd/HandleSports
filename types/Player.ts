@@ -1,3 +1,9 @@
+export interface PlayerStats {
+  goals: number;
+  yellowCards: number;
+  redCards: number;
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -7,4 +13,5 @@ export interface Player {
   goals: number;      
   yellowCards: number;
   redCards: number;
+  seasons?: Record<string, PlayerStats>;
 }

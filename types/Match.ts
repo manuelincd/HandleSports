@@ -22,6 +22,7 @@ export interface Match {
   awayTeamId: string;
   date: any;
   matchday: number;
+  seasonId: string;
   location?: string;
   homeScore?: number;
   awayScore?: number;

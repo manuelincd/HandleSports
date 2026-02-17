@@ -5,7 +5,7 @@ import { useThemeColors } from "@/theme/useThemeColors";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, Text, View, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Match, MatchStage, Scorer } from "@/types/Match";
@@ -37,21 +37,49 @@ export default function ManageMatchesScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const { addMatch, updateMatch, updateMatchScore, deleteMatch, fetchMatches } = useMatchesStore();
+  // Stores
+  const { addMatch, updateMatch, updateMatchScore, deleteMatch, fetchMatches, isLoading: loadingMatches } = useMatchesStore();
   const allMatches = useMatchesStore((state) => state.matches);
   const allTeams = useTeamsStore((state) => state.teams);
-  const { tournaments } = useTournamentsStore();
+  const { tournaments, fetchTournaments } = useTournamentsStore(); // Agregamos fetchTournaments por si acaso
 
+  // 1. OBTENER TORNEO
   const tournament = useMemo(() => tournaments.find(t => t.id === id), [tournaments, id]);
-  const matches = useMemo(() => allMatches.filter((m) => m.tournamentId === id), [allMatches, id]);
+
+  // 2. FILTRAR DATOS (Asegurando la temporada)
+  // Nota: fetchMatches ya se encarga de llenar el store solo con los relevantes, 
+  // pero el filtro local extra no hace daño.
+  const matches = useMemo(() => {
+      if (!tournament?.activeSeasonId) return [];
+      return allMatches.filter((m) => m.tournamentId === id && m.seasonId === tournament.activeSeasonId);
+  }, [allMatches, id, tournament?.activeSeasonId]);
+
   const teams = useMemo(() => allTeams.filter((t) => t.tournamentId === id), [allTeams, id]);
 
+  // Estados Modal
   const [isFormModalVisible, setFormModalVisible] = useState(false);
   const [isScoreModalVisible, setScoreModalVisible] = useState(false);
   const [selectedMatchForScore, setSelectedMatchForScore] = useState<Match | null>(null);
   const [selectedMatchForEdit, setSelectedMatchForEdit] = useState<Match | null>(null);
 
-  useEffect(() => { fetchMatches(); }, []);
+  // 3. EFECTO DE CARGA CORREGIDO
+  useEffect(() => {
+    const loadData = async () => {
+        // Si no tenemos el torneo cargado, lo pedimos primero para saber la temporada activa
+        let currentTournament = tournament;
+        if (!currentTournament) {
+            await fetchTournaments();
+            // Intentamos buscarlo de nuevo tras el fetch
+            // (Nota: En un componente real esto se maneja mejor con react-query, pero aquí improvisamos)
+        }
+
+        if (id && tournament?.activeSeasonId) {
+            console.log(`Cargando partidos para Torneo: ${id}, Temporada: ${tournament.activeSeasonId}`);
+            fetchMatches(id, tournament.activeSeasonId);
+        }
+    };
+    loadData();
+  }, [id, tournament?.activeSeasonId]); // Dependencia clave: activeSeasonId
 
   const getScoreUnit = (sportId?: string) => {
     switch (sportId) {
@@ -82,8 +110,11 @@ export default function ManageMatchesScreen() {
     setScoreModalVisible(true);
   };
 
+  // 4. GUARDAR PARTIDO CON TEMPORADA
   const handleFormSubmit = (data: any) => {
     const fullDate = new Date(`${data.date}T${data.time}:00`);
+    
+    // Objeto base
     const matchData = {
       homeTeamId: data.homeTeamId,
       awayTeamId: data.awayTeamId,
@@ -94,13 +125,18 @@ export default function ManageMatchesScreen() {
 
     if (selectedMatchForEdit) {
       updateMatch(selectedMatchForEdit.id, matchData);
-    } else if (id) {
+    } else if (id && tournament?.activeSeasonId) {
+      // CREAR NUEVO
       addMatch({
         ...matchData,
         tournamentId: id,
         status: "scheduled",
-        stage: "group", // Por defecto nuevos son grupo, a menos que cambies el modal para permitir elegir
+        stage: "group", 
+        // ¡CRUCIAL! Asignar la temporada activa
+        seasonId: tournament.activeSeasonId 
       });
+    } else {
+        Alert.alert("Error", "No se pudo identificar la temporada activa del torneo.");
     }
   };
 
@@ -122,9 +158,8 @@ export default function ManageMatchesScreen() {
     }
   };
 
-  // --- LÓGICA DE AGRUPAMIENTO MEJORADA ---
+  // --- LÓGICA DE AGRUPAMIENTO ---
   const groupedMatches = useMemo(() => {
-    // 1. Separar por Stage
     const groups: { title: string; matches: Match[]; order: number }[] = [];
 
     // A. Agrupar Jornadas (Stage = group)
@@ -135,7 +170,7 @@ export default function ManageMatchesScreen() {
       groups.push({
         title: getStageLabel('group', day),
         matches: groupMatches.filter(m => m.matchday === day),
-        order: day // Orden numérico bajo para que salgan primero (1, 2, 3...)
+        order: day
       });
     });
 
@@ -147,15 +182,16 @@ export default function ManageMatchesScreen() {
       groups.push({
         title: getStageLabel(stage),
         matches: eliminationMatches.filter(m => m.stage === stage),
-        // Orden alto: 100 + índice en STAGE_ORDER para que salgan después de las jornadas
         order: 100 + STAGE_ORDER.indexOf(stage)
       });
     });
 
-    // C. Ordenar todo el conjunto
     return groups.sort((a, b) => a.order - b.order);
 
   }, [matches]);
+
+  // Nombre de la temporada para mostrar en el header (opcional)
+  const currentSeasonName = tournament?.seasons?.find(s => s.id === tournament.activeSeasonId)?.name || "";
 
   return (
     <>
@@ -163,12 +199,23 @@ export default function ManageMatchesScreen() {
       <View className="flex-1" style={{ backgroundColor: colors.background }}>
 
         {/* Header */}
-        <View className="px-4 pb-4 shadow-sm flex-row items-center justify-between" style={{ backgroundColor: colors.surface, paddingTop: insets.top + 8 }}>
-          <Pressable onPress={() => router.back()} className="p-2 -ml-2 rounded-full">
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
-          </Pressable>
-          <Text className="text-xl font-bold" style={{ color: colors.text }}>Gestión de Partidos</Text>
-          <View className="w-10" />
+        <View className="px-4 pb-4 shadow-sm" style={{ backgroundColor: colors.surface, paddingTop: insets.top + 8 }}>
+          <View className="flex-row items-center justify-between mb-2">
+              <Pressable onPress={() => router.back()} className="p-2 -ml-2 rounded-full">
+                <Ionicons name="arrow-back" size={24} color={colors.text} />
+              </Pressable>
+              <Text className="text-xl font-bold" style={{ color: colors.text }}>Gestión de Partidos</Text>
+              <View className="w-10" />
+          </View>
+          
+          {/* Badge de Temporada (Visual feedback) */}
+          {currentSeasonName && (
+             <View className="self-center bg-gray-100 px-3 py-1 rounded-full">
+                 <Text className="text-xs font-bold text-gray-600 uppercase tracking-widest">
+                     {currentSeasonName}
+                 </Text>
+             </View>
+          )}
         </View>
 
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 80 }}>
@@ -177,45 +224,51 @@ export default function ManageMatchesScreen() {
             <Ionicons name="add-circle" size={24} color="white" />
             <Text className="text-white font-bold ml-2 text-lg">Nuevo Partido</Text>
           </Pressable>
+          
+          {loadingMatches ? (
+             <ActivityIndicator size="large" color={colors.primary} className="mt-10" />
+          ) : (
+            <>
+                {/* Lista Agrupada */}
+                {groupedMatches.map((group) => (
+                    <View key={group.title} className="mb-8">
+                    {/* Separador con Título */}
+                    <View className="flex-row items-center mb-4 opacity-60">
+                        <View className="h-[1px] flex-1" style={{ backgroundColor: colors.border }} />
+                        <Text className="mx-4 font-bold text-xs tracking-widest" style={{ color: colors.textSecondary }}>
+                        {group.title}
+                        </Text>
+                        <View className="h-[1px] flex-1" style={{ backgroundColor: colors.border }} />
+                    </View>
 
-          {/* Lista Agrupada */}
-          {groupedMatches.map((group) => (
-            <View key={group.title} className="mb-8">
-              {/* Separador con Título */}
-              <View className="flex-row items-center mb-4 opacity-60">
-                <View className="h-[1px] flex-1" style={{ backgroundColor: colors.border }} />
-                <Text className="mx-4 font-bold text-xs tracking-widest" style={{ color: colors.textSecondary }}>
-                  {group.title}
-                </Text>
-                <View className="h-[1px] flex-1" style={{ backgroundColor: colors.border }} />
-              </View>
+                    {group.matches.map((match) => (
+                        <View key={match.id} className="mb-6">
+                        <MatchCard
+                            match={match}
+                            homeTeam={allTeams.find(t => t.id === match.homeTeamId)}
+                            awayTeam={allTeams.find(t => t.id === match.awayTeamId)}
+                        />
 
-              {group.matches.map((match) => (
-                <View key={match.id} className="mb-6">
-                  <MatchCard
-                    match={match}
-                    homeTeam={allTeams.find(t => t.id === match.homeTeamId)}
-                    awayTeam={allTeams.find(t => t.id === match.awayTeamId)}
-                  />
+                        {/* Acciones */}
+                        <View className="flex-row gap-2 mt-3">
+                            <ActionButton icon="trophy-outline" label="Marcador" color={colors.success} onPress={() => handleOpenScore(match)} />
+                            <ActionButton icon="create-outline" label="Editar" color={colors.textSecondary} onPress={() => handleOpenEdit(match)} />
+                            <Pressable onPress={() => confirmDeleteMatch(match.id)} className="p-3 rounded-xl items-center justify-center" style={{ backgroundColor: `${colors.error}15` }}>
+                            <Ionicons name="trash-outline" size={18} color={colors.error} />
+                            </Pressable>
+                        </View>
+                        </View>
+                    ))}
+                    </View>
+                ))}
 
-                  {/* Acciones */}
-                  <View className="flex-row gap-2 mt-3">
-                    <ActionButton icon="trophy-outline" label="Marcador" color={colors.success} onPress={() => handleOpenScore(match)} />
-                    <ActionButton icon="create-outline" label="Editar" color={colors.textSecondary} onPress={() => handleOpenEdit(match)} />
-                    <Pressable onPress={() => confirmDeleteMatch(match.id)} className="p-3 rounded-xl items-center justify-center" style={{ backgroundColor: `${colors.error}15` }}>
-                      <Ionicons name="trash-outline" size={18} color={colors.error} />
-                    </Pressable>
-                  </View>
-                </View>
-              ))}
-            </View>
-          ))}
-
-          {groupedMatches.length === 0 && (
-            <View className="items-center py-10 opacity-50">
-              <Ionicons name="football-outline" size={48} color={colors.textSecondary} />
-              <Text className="mt-4" style={{ color: colors.textSecondary }}>No hay partidos programados</Text>
-            </View>
+                {groupedMatches.length === 0 && (
+                    <View className="items-center py-10 opacity-50">
+                    <Ionicons name="football-outline" size={48} color={colors.textSecondary} />
+                    <Text className="mt-4" style={{ color: colors.textSecondary }}>No hay partidos en esta temporada</Text>
+                    </View>
+                )}
+            </>
           )}
         </ScrollView>
 

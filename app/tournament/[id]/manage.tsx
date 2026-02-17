@@ -4,7 +4,7 @@ import { useThemeColors } from "@/theme/useThemeColors";
 import { TournamentFormat } from "@/types/Tournament";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react"; 
+import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMatchesStore } from "@/store/useMatches";
 import { useTeamsStore } from "@/store/useTeams";
 import { useTournamentsStore } from "@/store/useTournaments";
-// 2. IMPORTAR AUTH STORE (NUEVO)
+// 2. IMPORTAR AUTH STORE
 import { useAuthStore } from "@/store/useAuthStore";
 
 type ManageOption = {
@@ -52,15 +52,17 @@ export default function TournamentManageScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  
+
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCreatingSeason, setIsCreatingSeason] = useState(false); // Estado para el loading de temporada
 
   // CONEXIÓN A LOS STORES
-  const { tournaments, isLoading: loadingTournaments, fetchTournaments, deleteTournament } = useTournamentsStore();
+  // AGREGAMOS 'updateTournament' AQUÍ
+  const { tournaments, isLoading: loadingTournaments, fetchTournaments, deleteTournament, updateTournament } = useTournamentsStore();
   const { matches, isLoading: loadingMatches, fetchMatches } = useMatchesStore();
   const { teams, isLoading: loadingTeams, fetchTeams } = useTeamsStore();
-  
-  // 3. OBTENER USUARIO ACTUAL (NUEVO)
+
+  // 3. OBTENER USUARIO ACTUAL
   const { user } = useAuthStore();
 
   const tournament = tournaments.find((t) => t.id === id);
@@ -83,12 +85,51 @@ export default function TournamentManageScreen() {
     };
   }, [matches, teams, id]);
 
-  // 4. VERIFICAR PROPIEDAD (NUEVO)
-  // ¿Existe usuario? ¿Existe torneo? ¿El ID del usuario coincide con el ownerId del torneo?
+  // 4. VERIFICAR PROPIEDAD
   const isOwner = useMemo(() => {
-      if (!user || !tournament) return false;
-      return user.uid === tournament.ownerId;
+    if (!user || !tournament) return false;
+    return user.uid === tournament.ownerId;
   }, [user, tournament]);
+
+  // --- LÓGICA NUEVA TEMPORADA ---
+  const handleCreateSeason = () => {
+    Alert.alert(
+      "¿Nueva Temporada?",
+      "Al iniciar una nueva temporada, la actual se guardará en el historial. \n\n Los partidos anteriores ya NO se podrán editar para mantener la integridad histórica. \n\n¿Estás seguro de continuar?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Sí, Iniciar Nueva",
+          onPress: async () => {
+            try {
+              setIsCreatingSeason(true);
+
+              const currentSeasons = tournament?.seasons || [];
+              const nextNumber = currentSeasons.length + 1;
+              const newSeasonId = `s_${Date.now()}`;
+              const newSeasonName = `Temporada ${nextNumber}`;
+
+              const updatedSeasons = [
+                ...currentSeasons,
+                { id: newSeasonId, name: newSeasonName, isActive: true }
+              ];
+
+              await updateTournament(id, {
+                seasons: updatedSeasons,
+                activeSeasonId: newSeasonId
+              });
+
+              Alert.alert("¡Éxito!", `Se ha iniciado la ${newSeasonName}`);
+            } catch (error) {
+              Alert.alert("Error", "No se pudo crear la temporada");
+            } finally {
+              setIsCreatingSeason(false);
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const handleDeletePress = () => {
     Alert.alert(
@@ -96,8 +137,8 @@ export default function TournamentManageScreen() {
       "¿Estás seguro? Esta acción borrará permanentemente el torneo, sus equipos y partidos. No se puede deshacer.",
       [
         { text: "Cancelar", style: "cancel" },
-        { 
-          text: "Eliminar", 
+        {
+          text: "Eliminar",
           style: "destructive",
           onPress: async () => {
             try {
@@ -114,18 +155,18 @@ export default function TournamentManageScreen() {
     );
   };
 
-  const isLoading = (loadingTournaments && !tournament) || isDeleting;
+  const isLoading = (loadingTournaments && !tournament) || isDeleting || isCreatingSeason;
 
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={colors.primary} />
         {isDeleting && <Text style={{ color: colors.textSecondary, marginTop: 10 }}>Eliminando...</Text>}
+        {isCreatingSeason && <Text style={{ color: colors.textSecondary, marginTop: 10 }}>Creando temporada...</Text>}
       </View>
     );
   }
 
-  // VALIDACIÓN 1: Torneo no existe
   if (!tournament) {
     return (
       <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
@@ -138,31 +179,32 @@ export default function TournamentManageScreen() {
     );
   }
 
-  // VALIDACIÓN 2: NO ES EL DUEÑO (SEGURIDAD)
   if (!isOwner) {
     return (
-        <View className="flex-1 items-center justify-center p-8" style={{ backgroundColor: colors.background }}>
-            <View className="w-20 h-20 rounded-full bg-red-100 items-center justify-center mb-4">
-                <Ionicons name="lock-closed" size={40} color="#ef4444" />
-            </View>
-            <Text className="text-xl font-bold text-center mb-2" style={{ color: colors.text }}>
-                Acceso Restringido
-            </Text>
-            <Text className="text-center text-base" style={{ color: colors.textSecondary }}>
-                No tienes permisos para gestionar este torneo. Solo el creador puede acceder a este panel.
-            </Text>
-            <Pressable 
-                onPress={() => router.replace("/(tabs)/events")} 
-                className="mt-8 px-8 py-3 rounded-full" 
-                style={{ backgroundColor: colors.primary }}
-            >
-                <Text className="text-white font-bold">Volver a mis eventos</Text>
-            </Pressable>
+      <View className="flex-1 items-center justify-center p-8" style={{ backgroundColor: colors.background }}>
+        <View className="w-20 h-20 rounded-full bg-red-100 items-center justify-center mb-4">
+          <Ionicons name="lock-closed" size={40} color="#ef4444" />
         </View>
+        <Text className="text-xl font-bold text-center mb-2" style={{ color: colors.text }}>
+          Acceso Restringido
+        </Text>
+        <Text className="text-center text-base" style={{ color: colors.textSecondary }}>
+          No tienes permisos para gestionar este torneo.
+        </Text>
+        <Pressable
+          onPress={() => router.replace("/(tabs)/events")}
+          className="mt-8 px-8 py-3 rounded-full"
+          style={{ backgroundColor: colors.primary }}
+        >
+          <Text className="text-white font-bold">Volver a mis eventos</Text>
+        </Pressable>
+      </View>
     );
   }
 
   const manageOptions = getManageOptionsForFormat(tournament.format, tournament.id);
+
+  const currentSeasonName = tournament.seasons?.find(s => s.id === tournament.activeSeasonId)?.name || "Temporada 1";
 
   return (
     <>
@@ -192,7 +234,7 @@ export default function TournamentManageScreen() {
             <View className="flex-row items-center px-3 py-1.5 rounded-full" style={{ backgroundColor: colors.primaryLight }}>
               <Text className="mr-1">{tournament.format === "league" ? "📊" : tournament.format === "knockout" ? "🏆" : "⚡"}</Text>
               <Text className="text-xs font-semibold" style={{ color: colors.primary }}>
-                Formato: {tournament.format === "league" ? "Liga (Todos vs Todos)" : tournament.format === "knockout" ? "Eliminación Directa" : "Mixto (Grupos + Eliminación)"}
+                Formato: {tournament.format === "league" ? "Liga" : tournament.format === "knockout" ? "Eliminación" : "Mixto"}
               </Text>
             </View>
           </View>
@@ -213,17 +255,38 @@ export default function TournamentManageScreen() {
             ))}
           </View>
 
+          <View className="p-4 border-b" style={{ borderColor: colors.border }}>
+            <View className="flex-row justify-between items-center mb-2">
+              <Text className="text-sm font-semibold" style={{ color: colors.textSecondary }}>TEMPORADA ACTUAL</Text>
+              <View className="bg-gray-500 px-2 py-1 rounded">
+                <Text className="text-xs font-bold" style={{ color: colors.text }}>{currentSeasonName}</Text>
+              </View>
+            </View>
+
+            <Pressable
+              onPress={handleCreateSeason}
+              className="flex-row items-center justify-center p-3 rounded-xl border border-dashed"
+              style={({ pressed }) => ({
+                borderColor: colors.primary,
+                backgroundColor: pressed ? colors.primary + '10' : 'transparent'
+              })}
+            >
+              <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+              <Text className="ml-2 font-semibold" style={{ color: colors.primary }}>Cerrar actual e iniciar nueva</Text>
+            </Pressable>
+          </View>
           <View className="p-4">
             <Text className="text-sm font-semibold mb-3" style={{ color: colors.textSecondary }}>ZONA PELIGROSA</Text>
-            <Pressable 
-                onPress={handleDeletePress} 
-                className="flex-row items-center justify-center p-4 rounded-2xl" 
-                style={({ pressed }) => ({ backgroundColor: `${colors.error}20`, opacity: pressed ? 0.7 : 1 })}
+            <Pressable
+              onPress={handleDeletePress}
+              className="flex-row items-center justify-center p-4 rounded-2xl"
+              style={({ pressed }) => ({ backgroundColor: `${colors.error}20`, opacity: pressed ? 0.7 : 1 })}
             >
               <Ionicons name="trash-outline" size={20} color={colors.error} />
               <Text className="ml-2 font-semibold" style={{ color: colors.error }}>Eliminar Torneo</Text>
             </Pressable>
           </View>
+
         </ScrollView>
       </View>
     </>

@@ -20,6 +20,12 @@ export type TournamentStatus =
   | "live"          
   | "finished";     
 
+export interface Season {
+  id: string;   
+  name: string; 
+  isActive: boolean;
+}
+
 export type Tournament = {
   id: string;
   name: string;
@@ -32,15 +38,19 @@ export type Tournament = {
   format: TournamentFormat;
   status?: TournamentStatus;
   
+  seasons: Season[];
+  activeSeasonId: string;
   sections: TournamentSection[];
   
-  // Metadata
   createdBy?: string;
   createdAt?: string;
   startDate?: string;
   endDate?: string;
   
-  // Stats calculadas
   matchesCount?: number;
   roundsCount?: number;
+
+  winPoints?: number;
+  drawPoints?: number;
+  lossPoints?: number;
 };

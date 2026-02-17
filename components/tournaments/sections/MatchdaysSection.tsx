@@ -1,6 +1,8 @@
 import { MatchCard } from "@/components/matches/MatchCard";
 import { useMatchesStore } from "@/store/useMatches";
 import { useTeamsStore } from "@/store/useTeams";
+// 1. IMPORTAR STORE DE TORNEOS PARA BUSCAR EL NOMBRE DE LA TEMPORADA
+import { useTournamentsStore } from "@/store/useTournaments"; 
 import { useThemeColors } from "@/theme/useThemeColors";
 import { Match, MatchStage } from "@/types/Match";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,43 +18,57 @@ const STAGE_LABELS: Record<MatchStage, string> = {
   '3rd_place': '3er Lugar'
 };
 
-// Orden lógico de las fases eliminatorias
 const STAGE_ORDER: MatchStage[] = ['round_of_16', 'quarterfinals', 'semifinals', '3rd_place', 'final'];
 
 type Props = {
   tournamentId: string;
+  seasonId?: string; 
 };
 
-// Tipo unificado para el selector
 type SelectorItem = {
-    id: string; // Identificador único (ej: "md-1" o "st-final")
+    id: string;
     type: 'matchday' | 'stage';
     label: string;
-    subLabel: string; // Para mostrar "Jornada X" o el nombre de la fase
+    subLabel: string;
     matches: Match[];
     total: number;
     finished: number;
     isCompleted: boolean;
 };
 
-export function MatchdaysSection({ tournamentId }: Props) {
+export function MatchdaysSection({ tournamentId, seasonId }: Props) {
   const colors = useThemeColors();
   const flatListRef = useRef<FlatList>(null);
 
-  // 1. STORES
   const { matches: allMatches, fetchMatches, isLoading: isLoadingMatches } = useMatchesStore();
   const { teams: allTeams, fetchTeams, isLoading: isLoadingTeams } = useTeamsStore();
+  
+  // 2. OBTENER DATOS DEL TORNEO
+  const { tournaments } = useTournamentsStore();
+  const tournament = tournaments.find(t => t.id === tournamentId);
 
-  // 2. CARGAR DATOS
+  // 3. OBTENER NOMBRE DE LA TEMPORADA
+  const seasonName = useMemo(() => {
+      if (!tournament || !seasonId) return null;
+      return tournament.seasons?.find(s => s.id === seasonId)?.name || null;
+  }, [tournament, seasonId]);
+
+  // CARGAR DATOS
   useEffect(() => {
-    fetchMatches();
-    fetchTeams();
-  }, []);
+    if (tournamentId) {
+        fetchMatches(tournamentId, seasonId);
+    }
+    fetchTeams(); 
+  }, [tournamentId, seasonId]);
 
-  // 3. PROCESAMIENTO DE DATOS UNIFICADO
+  // PROCESAMIENTO DE DATOS UNIFICADO
   const tournamentMatches = useMemo(
-    () => allMatches.filter((m) => m.tournamentId === tournamentId),
-    [allMatches, tournamentId]
+    () => allMatches.filter((m) => {
+        const matchesTournament = m.tournamentId === tournamentId;
+        const matchesSeason = seasonId ? m.seasonId === seasonId : true;
+        return matchesTournament && matchesSeason;
+    }),
+    [allMatches, tournamentId, seasonId]
   );
 
   const selectorItems = useMemo<SelectorItem[]>(() => {
@@ -60,7 +76,7 @@ export function MatchdaysSection({ tournamentId }: Props) {
 
     const items: SelectorItem[] = [];
 
-    // A. PROCESAR JORNADAS (Fase de Grupos)
+    // A. JORNADAS
     const regularMatches = tournamentMatches.filter(m => m.stage === 'group');
     const uniqueMatchdays = [...new Set(regularMatches.map(m => m.matchday).filter(Boolean))].sort((a, b) => a - b);
 
@@ -81,10 +97,9 @@ export function MatchdaysSection({ tournamentId }: Props) {
         });
     });
 
-    // B. PROCESAR FASES ELIMINATORIAS
+    // B. ELIMINATORIAS
     const eliminationMatches = tournamentMatches.filter(m => m.stage !== 'group');
     
-    // Iteramos sobre el orden definido para mantener la cronología
     STAGE_ORDER.forEach(stage => {
         const stageMatches = eliminationMatches.filter(m => m.stage === stage);
         if (stageMatches.length > 0) {
@@ -107,21 +122,19 @@ export function MatchdaysSection({ tournamentId }: Props) {
     return items;
   }, [tournamentMatches]);
 
-  // 4. ESTADO DE SELECCIÓN
+  // ESTADO DE SELECCIÓN
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
-  // Lógica para encontrar el ítem inicial (el primero no terminado o el último)
+  useEffect(() => {
+      setSelectedItemId(null); 
+  }, [seasonId]);
+
   const initialIndex = useMemo(() => {
       if (selectorItems.length === 0) return -1;
-      
-      // Buscamos el primero que no esté completo
       const firstActive = selectorItems.findIndex(item => !item.isCompleted);
-      
-      // Si todos están completos, vamos al último. Si no, al activo.
       return firstActive !== -1 ? firstActive : selectorItems.length - 1;
   }, [selectorItems]);
 
-  // Inicializar selección
   useEffect(() => {
       if (selectorItems.length > 0 && !selectedItemId) {
           const targetIndex = initialIndex !== -1 ? initialIndex : 0;
@@ -129,7 +142,6 @@ export function MatchdaysSection({ tournamentId }: Props) {
       }
   }, [selectorItems, initialIndex, selectedItemId]);
 
-  // Auto-scroll al ítem inicial
   useEffect(() => {
     if (selectorItems.length > 0 && flatListRef.current && initialIndex !== -1) {
       const timer = setTimeout(() => {
@@ -145,7 +157,6 @@ export function MatchdaysSection({ tournamentId }: Props) {
 
   const getTeam = (teamId: string) => allTeams.find((t) => t.id === teamId);
 
-  // Item seleccionado actual
   const currentItem = useMemo(() => 
       selectorItems.find(i => i.id === selectedItemId) || selectorItems[0],
   [selectorItems, selectedItemId]);
@@ -162,26 +173,52 @@ export function MatchdaysSection({ tournamentId }: Props) {
 
   if (selectorItems.length === 0) {
     return (
-      <View
-        className="p-6 rounded-2xl items-center border-2 border-dashed mx-4 mt-4"
-        style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-      >
-        <Ionicons name="calendar-outline" size={48} color={colors.textSecondary} />
-        <Text className="text-lg font-semibold mt-4 mb-2" style={{ color: colors.text }}>
-          Calendario Vacío
-        </Text>
+      <View>
+          {/* Header de Temporada incluso si está vacío */}
+          {seasonName && (
+             <View className="mb-4 flex-row items-center justify-center">
+                 <View className="bg-gray-100 px-4 py-1.5 rounded-full border border-gray-200">
+                     <Text className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                         {seasonName}
+                     </Text>
+                 </View>
+             </View>
+          )}
+
+          <View
+            className="p-6 rounded-2xl items-center border-2 border-dashed mx-4 mt-2"
+            style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+          >
+            <Ionicons name="calendar-outline" size={48} color={colors.textSecondary} />
+            <Text className="text-lg font-semibold mt-4 mb-2" style={{ color: colors.text }}>
+              Calendario Vacío
+            </Text>
+            <Text className="text-center text-sm" style={{ color: colors.textSecondary }}>
+              No hay partidos programados para esta temporada.
+            </Text>
+          </View>
       </View>
     );
   }
 
   return (
     <View className="flex-1">
-      {/* Selector Unificado Horizontal */}
-      <View className="mb-4">
-        <Text className="text-sm font-semibold mb-3 uppercase tracking-wider px-1" style={{ color: colors.textSecondary }}>
+      {/* 4. TÍTULO DE SECCIÓN CON TEMPORADA */}
+      <View className="mb-4 flex-row items-center justify-between">
+        <Text className="text-sm font-semibold uppercase tracking-wider px-1" style={{ color: colors.textSecondary }}>
           Calendario del Torneo
         </Text>
+        
+        {seasonName && (
+             <View className="px-3 py-1 rounded-full border" style={{ backgroundColor: colors.surface, borderColor: colors.primary }}>
+                 <Text className="text-[10px] font-bold uppercase" style={{ color: colors.primary }}>
+                     {seasonName}
+                 </Text>
+             </View>
+        )}
+      </View>
 
+      <View className="mb-4">
         <FlatList
           ref={flatListRef}
           data={selectorItems}
@@ -229,7 +266,6 @@ export function MatchdaysSection({ tournamentId }: Props) {
                       borderColor: colors.border,
                     }}
                   >
-                    {/* Etiqueta Principal (Jornada 1 / Octavos) */}
                     <Text
                       className="text-base font-bold text-center"
                       style={{
@@ -241,7 +277,6 @@ export function MatchdaysSection({ tournamentId }: Props) {
                     </Text>
 
                     <View className="flex-row items-center mt-1">
-                      {/* Icono diferenciador */}
                       <Ionicons 
                         name={item.type === 'matchday' ? "calendar" : "trophy"} 
                         size={10} 
@@ -249,7 +284,6 @@ export function MatchdaysSection({ tournamentId }: Props) {
                         style={{ marginRight: 4 }}
                       />
                       
-                      {/* Contador */}
                       <Text
                         className="text-xs mr-1"
                         style={{
@@ -260,7 +294,6 @@ export function MatchdaysSection({ tournamentId }: Props) {
                         {item.finished}/{item.total}
                       </Text>
                       
-                      {/* Check si está completo */}
                       {item.isCompleted && (
                         <Ionicons name="checkmark-circle" size={14} color={isSelected ? "#fff" : colors.success} />
                       )}
@@ -273,7 +306,7 @@ export function MatchdaysSection({ tournamentId }: Props) {
         />
       </View>
 
-      {/* Lista de partidos del item seleccionado */}
+      {/* Lista de partidos */}
       {currentItem && (
         <View>
           <Text className="text-sm font-semibold mb-3 uppercase tracking-wider px-1" style={{ color: colors.textSecondary }}>

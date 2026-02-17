@@ -1,14 +1,16 @@
 import { useMatchesStore } from "@/store/useMatches";
 import { useTeamsStore } from "@/store/useTeams";
+import { useTournamentsStore } from "@/store/useTournaments";
 import { useThemeColors } from "@/theme/useThemeColors";
 import { Ionicons } from "@expo/vector-icons";
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { Image, ScrollView, Text, View, ActivityIndicator } from "react-native";
 
 const placeholder = require("@/assets/images/team-placeholder.png");
 
 type Props = {
   tournamentId: string;
+  seasonId?: string;
 };
 
 type TeamStats = {
@@ -25,24 +27,44 @@ type TeamStats = {
   points: number;
 };
 
-export function StandingsSection({ tournamentId }: Props) {
+export function StandingsSection({ tournamentId, seasonId }: Props) {
   const colors = useThemeColors();
   
-  // 1. CONEXIÓN A LOS STORES
-  const { matches, isLoading: loadingMatches } = useMatchesStore();
-  const { teams, isLoading: loadingTeams } = useTeamsStore();
+  const { matches, isLoading: loadingMatches, fetchMatches } = useMatchesStore();
+  const { teams, isLoading: loadingTeams, fetchTeams } = useTeamsStore();
+  const { tournaments } = useTournamentsStore();
+  
+  const tournament = tournaments.find(t => t.id === tournamentId);
 
-  // 2. CEREBRO MATEMÁTICO (useMemo para rendimiento)
+  const seasonName = useMemo(() => {
+      if (!tournament || !seasonId) return null;
+      return tournament.seasons?.find(s => s.id === seasonId)?.name || null;
+  }, [tournament, seasonId]);
+
+  useEffect(() => {
+     if (tournamentId) {
+         fetchMatches(tournamentId, seasonId);
+     }
+     fetchTeams();
+  }, [tournamentId, seasonId]);
+
   const tableData = useMemo(() => {
-    // A. Filtramos equipos y partidos del torneo
+    // CONFIGURACIÓN DE PUNTOS 
+    const POINTS_WIN = tournament?.winPoints ?? 3;
+    const POINTS_DRAW = tournament?.drawPoints ?? 1;
+    const POINTS_LOSS = tournament?.lossPoints ?? 0;
+
     const tournamentTeams = teams.filter(t => t.tournamentId === tournamentId);
+    
     const tournamentMatches = matches.filter(m => 
-        m.tournamentId === tournamentId && m.status === 'finished'
+        m.tournamentId === tournamentId && 
+        m.status === 'finished' && 
+        (seasonId ? m.seasonId === seasonId : true)
     );
 
-    // B. Inicializamos el mapa de estadísticas
     const statsMap = new Map<string, TeamStats>();
 
+    // Inicializar equipos
     tournamentTeams.forEach(team => {
         statsMap.set(team.id, {
             teamId: team.id,
@@ -53,21 +75,21 @@ export function StandingsSection({ tournamentId }: Props) {
         });
     });
 
-    // C. Procesamos cada partido jugado
+    // Calcular estadísticas
     tournamentMatches.forEach(match => {
+        if (match.stage !== 'group') return; 
+
         const home = statsMap.get(match.homeTeamId);
         const away = statsMap.get(match.awayTeamId);
 
-        if (!home || !away) return; // Si un equipo fue borrado, ignoramos
+        if (!home || !away) return;
 
         const hScore = match.homeScore || 0;
         const aScore = match.awayScore || 0;
 
-        // Actualizar partidos jugados
         home.played += 1;
         away.played += 1;
 
-        // Actualizar goles
         home.gf += hScore;
         home.ga += aScore;
         home.gd += (hScore - aScore);
@@ -76,37 +98,41 @@ export function StandingsSection({ tournamentId }: Props) {
         away.ga += hScore;
         away.gd += (aScore - hScore);
 
-        // Calcular Puntos y Resultados
         if (hScore > aScore) {
             // Gana Local
             home.won += 1;
-            home.points += 3;
+            home.points += POINTS_WIN; 
+            
+            // Pierde Visitante
             away.lost += 1;
+            away.points += POINTS_LOSS; 
+
         } else if (hScore < aScore) {
             // Gana Visitante
             away.won += 1;
-            away.points += 3;
+            away.points += POINTS_WIN; 
+            
+            // Pierde Local
             home.lost += 1;
+            home.points += POINTS_LOSS; 
+
         } else {
             // Empate
             home.drawn += 1;
-            home.points += 1;
+            home.points += POINTS_DRAW; 
+            
             away.drawn += 1;
-            away.points += 1;
+            away.points += POINTS_DRAW; 
         }
     });
 
-    // D. Convertimos a Array y Ordenamos
     return Array.from(statsMap.values()).sort((a, b) => {
-        // 1. Mayor puntaje
         if (b.points !== a.points) return b.points - a.points;
-        // 2. Mayor diferencia de gol
         if (b.gd !== a.gd) return b.gd - a.gd;
-        // 3. Más goles a favor
         return b.gf - a.gf;
     });
 
-  }, [matches, teams, tournamentId]);
+  }, [matches, teams, tournamentId, seasonId, tournament]); 
 
   if (loadingMatches || loadingTeams) {
       return <ActivityIndicator size="large" color={colors.primary} className="mt-10" />;
@@ -114,16 +140,45 @@ export function StandingsSection({ tournamentId }: Props) {
 
   if (tableData.length === 0) {
     return (
-      <View className="items-center py-10 opacity-50">
-        <Ionicons name="trophy-outline" size={48} color={colors.textSecondary} />
-        <Text className="mt-4" style={{ color: colors.textSecondary }}>Aún no hay equipos en la tabla</Text>
+      <View>
+          <View className="mb-4 flex-row items-center justify-between">
+            <Text className="text-sm font-semibold uppercase tracking-wider px-1" style={{ color: colors.textSecondary }}>
+                Tabla General
+            </Text>
+            {seasonName && (
+                <View className="px-3 py-1 rounded-full border" style={{ backgroundColor: colors.surface, borderColor: colors.primary }}>
+                    <Text className="text-[10px] font-bold uppercase" style={{ color: colors.primary }}>
+                        {seasonName}
+                    </Text>
+                </View>
+            )}
+          </View>
+
+          <View className="items-center py-10 opacity-50 border-2 border-dashed rounded-2xl mx-4" style={{ borderColor: colors.border }}>
+            <Ionicons name="trophy-outline" size={48} color={colors.textSecondary} />
+            <Text className="mt-4" style={{ color: colors.textSecondary }}>Aún no hay equipos en la tabla</Text>
+          </View>
       </View>
     );
   }
 
   return (
     <View className="flex-1 pb-8">
-      {/* HEADER DE LA TABLA */}
+      
+      <View className="mb-4 flex-row items-center justify-between">
+        <Text className="text-sm font-semibold uppercase tracking-wider px-1" style={{ color: colors.textSecondary }}>
+          Tabla General
+        </Text>
+        
+        {seasonName && (
+             <View className="px-3 py-1 rounded-full border" style={{ backgroundColor: colors.surface, borderColor: colors.primary }}>
+                 <Text className="text-[10px] font-bold uppercase" style={{ color: colors.primary }}>
+                     {seasonName}
+                 </Text>
+             </View>
+        )}
+      </View>
+
       <View 
         className="flex-row py-3 px-4 mb-2 rounded-xl"
         style={{ backgroundColor: colors.background }}
@@ -137,18 +192,11 @@ export function StandingsSection({ tournamentId }: Props) {
         </View>
       </View>
 
-      {/* FILAS DE LA TABLA */}
       <ScrollView showsVerticalScrollIndicator={false}>
         {tableData.map((team, index) => {
-            // Colores para zonas de clasificación (Opcional)
             const isChampion = index === 0;
-            const isPromotion = index < 4; 
-            const isRelegation = index >= tableData.length - 2 && tableData.length > 4;
-
             let positionColor = "transparent";
-            if (isChampion) positionColor = "#fbbf24"; // Dorado
-            // else if (isPromotion) positionColor = "#3b82f6"; // Azul Champions
-            // else if (isRelegation) positionColor = "#ef4444"; // Rojo Descenso
+            if (isChampion) positionColor = "#fbbf24"; 
 
             return (
                 <View 
@@ -199,7 +247,6 @@ export function StandingsSection({ tournamentId }: Props) {
             );
         })}
         
-        {/* Leyenda pequeña al final */}
         <View className="flex-row justify-center mt-4 gap-4">
             <View className="flex-row items-center">
                 <View className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: "#fbbf24" }} />
@@ -207,7 +254,7 @@ export function StandingsSection({ tournamentId }: Props) {
             </View>
         </View>
         <Text className="text-xs text-center mt-2" style={{ color: colors.textSecondary }}>
-            * La clasificación puede variar según el formato del torneo
+            * La clasificación puede variar según el reglamento del torneo
         </Text>
       </ScrollView>
     </View>

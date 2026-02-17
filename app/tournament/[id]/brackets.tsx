@@ -100,12 +100,13 @@ export default function BracketManageScreen() {
                 location: data.location,
                 status: 'scheduled',
                 stage: activeStage,
+                seasonId: tournament?.activeSeasonId || "",
             });
         }
 
         setIsModalOpen(false);
         setEditingMatch(null);
-    }, [editingMatch, addMatch, updateMatch, tournamentId, activeStage]);
+    }, [editingMatch, addMatch, updateMatch, tournamentId, activeStage, tournament]);
 
     const handleEditMatch = useCallback((match: any) => {
         setEditingMatch(match);
@@ -202,7 +203,8 @@ export default function BracketManageScreen() {
                                     matchday: 0,
                                     location: "Por definir",
                                     status: 'scheduled',
-                                    stage: nextStage.id,
+                                    stage: nextStage.id as MatchStage,
+                                    seasonId: tournament?.activeSeasonId || ""
                                 });
                             }
                         }
@@ -213,7 +215,7 @@ export default function BracketManageScreen() {
                 },
             ]
         );
-    }, [allMatchesFinished, activeStage, stageMatches, addMatch, tournamentId]);
+    }, [allMatchesFinished, activeStage, stageMatches, addMatch, tournamentId, tournament]);
 
     return (
         <>

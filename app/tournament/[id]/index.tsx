@@ -1,17 +1,16 @@
 import { TournamentSectionContent } from "@/components/tournaments/TournamentSectionContent";
-import { SPORTS } from "@/data/sports";
 import { useFavoritesStore } from "@/store/useFavorites";
+import { useMatchesStore } from "@/store/useMatches";
+import { useTournamentsStore } from "@/store/useTournaments";
 import { useThemeColors } from "@/theme/useThemeColors";
-import { TournamentSection } from "@/types/Tournament";
-import { TournamentFormat } from "@/types/Tournament"; // Asegúrate de importar esto
+import { TournamentFormat, TournamentSection } from "@/types/Tournament";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-// 1. IMPORTAR EL STORE DE TORNEOS
-import { useTournamentsStore } from "@/store/useTournaments";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 function getSectionLabel(section: TournamentSection): string {
   const labels: Record<TournamentSection, string> = {
@@ -19,31 +18,21 @@ function getSectionLabel(section: TournamentSection): string {
     standings: "Tabla",
     teams: "Equipos",
     stats: "Estadísticas",
-    bracket: "Fase Final", // O "Cuadro"
+    bracket: "Fase Final",
     groups: "Fase de Grupos",
   };
   return labels[section];
 }
 
-// --- 1. NUEVA FUNCIÓN DE LÓGICA ---
-// Define qué pestañas mostrar según el formato del torneo
 function getSectionsForFormat(format: TournamentFormat): TournamentSection[] {
-  // Secciones base que TODOS tienen
   const baseSections: TournamentSection[] = ["teams", "matchdays"];
-
   switch (format) {
     case "league":
-      // Liga: Equipos, Jornadas, Tabla, Estadísticas
       return [...baseSections, "standings", "stats"];
-    
     case "knockout":
-      // Eliminatoria: Equipos, Jornadas, Cuadro (Bracket), Estadísticas
       return [...baseSections, "bracket", "stats"];
-    
     case "mixed":
-      // Mixto: Equipos, Jornadas, Grupos, Cuadro, Estadísticas
       return [...baseSections, "groups", "bracket", "stats"];
-      
     default:
       return baseSections;
   }
@@ -57,31 +46,58 @@ export default function TournamentDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // 2. CONEXIÓN CON EL STORE
   const { tournaments, isLoading, fetchTournaments } = useTournamentsStore();
+  const { fetchMatches } = useMatchesStore();
   const { isFavorite, toggleFavorite } = useFavoritesStore();
 
-  // Buscamos el torneo en el estado global
   const tournament = tournaments.find((t) => t.id === id);
 
-  // Estado para la sección activa (Tab)
   const [activeSection, setActiveSection] = useState<TournamentSection | null>(null);
+  const [sportData, setSportData] = useState<{ name: string; emoji: string } | null>(null);
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string | undefined>(undefined);
 
-  // 3. EFECTO: CARGAR DATOS SI NO EXISTEN
+  
   useEffect(() => {
-    // Si no encontramos el torneo en la lista local y no está cargando, refrescamos desde Firebase
     if (!tournament && !isLoading) {
       fetchTournaments();
     }
   }, [id, tournament]);
 
-  // --- 2. CALCULAR SECCIONES DINÁMICAMENTE ---
+  useEffect(() => {
+    if (tournament && !selectedSeasonId) {
+      const defaultSeason = tournament.activeSeasonId || (tournament.seasons && tournament.seasons.length > 0 ? tournament.seasons[0].id : undefined);
+      setSelectedSeasonId(defaultSeason);
+    }
+  }, [tournament]);
+
+  useEffect(() => {
+    if (tournament) {
+      fetchMatches(tournament.id, selectedSeasonId);
+    }
+  }, [tournament, selectedSeasonId]);
+
+  useEffect(() => {
+    const fetchSport = async () => {
+      if (tournament?.sportId) {
+        try {
+          const docRef = doc(db, "sports", tournament.sportId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            setSportData(docSnap.data() as { name: string; emoji: string });
+          }
+        } catch (error) {
+          console.error("Error fetching sport:", error);
+        }
+      }
+    };
+    fetchSport();
+  }, [tournament?.sportId]);
+
   const sections = useMemo(() => {
     if (!tournament) return [];
     return getSectionsForFormat(tournament.format);
   }, [tournament]);
 
-  // 4. EFECTO: INICIALIZAR LA TAB ACTIVA
   useEffect(() => {
     if (tournament && !activeSection && sections.length > 0) {
       const defaultSection = sections.includes("matchdays") ? "matchdays" : sections[0];
@@ -89,9 +105,6 @@ export default function TournamentDetailScreen() {
     }
   }, [tournament, sections]);
 
-  const sport = tournament ? SPORTS.find((s) => s.id === tournament.sportId) : null;
-
-  // 5. VISTA DE CARGA
   if (isLoading && !tournament) {
     return (
       <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
@@ -100,7 +113,6 @@ export default function TournamentDetailScreen() {
     );
   }
 
-  // 6. VISTA DE NO ENCONTRADO
   if (!tournament) {
     return (
       <View
@@ -135,20 +147,11 @@ export default function TournamentDetailScreen() {
     );
   }
 
-  // 7. RENDERIZADO PRINCIPAL
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
 
-      <View
-        className="flex-1"
-        style={{ backgroundColor: colors.background }}
-      >
-        {/* Header con imagen */}
+      <View className="flex-1" style={{ backgroundColor: colors.background }}>
         <View
           className="px-4 pb-4"
           style={{
@@ -156,7 +159,6 @@ export default function TournamentDetailScreen() {
             paddingTop: insets.top + 8,
           }}
         >
-          {/* Botón de regresar */}
           <Pressable
             onPress={() => router.back()}
             className="mb-4 self-start p-2 -ml-2 rounded-full"
@@ -168,7 +170,6 @@ export default function TournamentDetailScreen() {
           </Pressable>
 
           <View className="flex-row items-center">
-            {/* Logo del torneo */}
             <Image
               source={
                 tournament.logoUrl
@@ -178,7 +179,6 @@ export default function TournamentDetailScreen() {
               className="w-16 h-16 rounded-xl mr-4"
             />
 
-            {/* Info del torneo */}
             <View className="flex-1">
               <Text
                 className="text-2xl font-bold mb-1"
@@ -188,12 +188,12 @@ export default function TournamentDetailScreen() {
               </Text>
 
               <View className="flex-row items-center mb-1">
-                <Text className="mr-2">{sport?.emoji}</Text>
+                <Text className="mr-2">{sportData?.emoji || "⚽"}</Text>
                 <Text
                   className="text-sm"
                   style={{ color: colors.textSecondary }}
                 >
-                  {sport?.name || "Deporte Desconocido"}
+                  {sportData?.name || "Cargando deporte..."}
                 </Text>
               </View>
 
@@ -226,7 +226,6 @@ export default function TournamentDetailScreen() {
               </View>
             </View>
 
-            {/* Botón de favorito */}
             <Pressable
               onPress={() => toggleFavorite(tournament.id)}
               className="p-2 rounded-full"
@@ -235,20 +234,15 @@ export default function TournamentDetailScreen() {
               })}
             >
               <Ionicons
-                name={
-                  isFavorite(tournament.id) ? "star" : "star-outline"
-                }
+                name={isFavorite(tournament.id) ? "star" : "star-outline"}
                 size={28}
-                color={
-                  isFavorite(tournament.id) ? "#fbbf24" : colors.text
-                }
+                color={isFavorite(tournament.id) ? "#fbbf24" : colors.text}
               />
             </Pressable>
           </View>
 
-          {/* Badge de formato */}
-          <View className="mt-3 self-start">
-            <View
+          <View className="mt-3 flex-row items-center justify-between">
+             <View
               className="flex-row items-center px-3 py-1.5 rounded-full"
               style={{ backgroundColor: colors.primaryLight }}
             >
@@ -270,10 +264,34 @@ export default function TournamentDetailScreen() {
                   : "Mixto"}
               </Text>
             </View>
+
+            {tournament.seasons && tournament.seasons.length > 0 && (
+                <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false} 
+                    className="ml-4"
+                    contentContainerStyle={{ alignItems: 'center' }}
+                >
+                    {tournament.seasons.map((season) => (
+                        <Pressable
+                            key={season.id}
+                            onPress={() => setSelectedSeasonId(season.id)}
+                            className={`px-3 py-1 rounded-full mr-2 border ${selectedSeasonId === season.id ? 'bg-gray-800' : 'bg-transparent'}`}
+                            style={{ borderColor: colors.border }}
+                        >
+                            <Text 
+                                className="text-xs font-medium" 
+                                style={{ color: selectedSeasonId === season.id ? '#fff' : colors.textSecondary }}
+                            >
+                                {season.name}
+                            </Text>
+                        </Pressable>
+                    ))}
+                </ScrollView>
+            )}
           </View>
         </View>
 
-        {/* Tabs de navegación */}
         <View
           style={{
             borderBottomWidth: 1,
@@ -318,7 +336,6 @@ export default function TournamentDetailScreen() {
           </ScrollView>
         </View>
 
-        {/* Contenido de la sección activa */}
         <ScrollView
           className="flex-1"
           contentContainerStyle={{ padding: 16 }}
@@ -328,6 +345,7 @@ export default function TournamentDetailScreen() {
             <TournamentSectionContent
               section={activeSection}
               tournamentId={id}
+              seasonId={selectedSeasonId}
             />
           ) : (
             <View

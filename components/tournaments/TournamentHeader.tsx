@@ -1,10 +1,14 @@
 import { Tournament } from "@/types/Tournament";
-import { SPORTS } from "@/data/sports";
 import { useThemeColors } from "@/theme/useThemeColors";
 import { Ionicons } from "@expo/vector-icons";
 import { Image, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const placeholder = require("@/assets/images/tournament-placeholder.png");
+
+const sportCache: Record<string, { name: string; emoji: string }> = {};
 
 type Props = {
   tournament: Tournament;
@@ -18,7 +22,38 @@ type Props = {
 
 export function TournamentHeader({ tournament, showStats = true, stats }: Props) {
   const colors = useThemeColors();
-  const sport = SPORTS.find((s) => s.id === tournament.sportId);
+  
+  // ESTADO PARA EL DEPORTE
+  const [sportData, setSportData] = useState<{ name: string; emoji: string } | null>(null);
+
+  useEffect(() => {
+    const loadSport = async () => {
+        const sportId = tournament.sportId;
+        if (!sportId) return;
+
+        // 1. Revisar Caché
+        if (sportCache[sportId]) {
+            setSportData(sportCache[sportId]);
+            return;
+        }
+
+        // 2. Buscar en Firebase
+        try {
+            const docRef = doc(db, "sports", sportId);
+            const docSnap = await getDoc(docRef);
+            
+            if (docSnap.exists()) {
+                const data = docSnap.data() as { name: string; emoji: string };
+                sportCache[sportId] = data;
+                setSportData(data);
+            }
+        } catch (error) {
+            console.error("Error cargando deporte en header:", error);
+        }
+    };
+
+    loadSport();
+  }, [tournament.sportId]);
 
   return (
     <View className="p-4" style={{ backgroundColor: colors.surface }}>
@@ -36,12 +71,14 @@ export function TournamentHeader({ tournament, showStats = true, stats }: Props)
           >
             {tournament.name}
           </Text>
+          
           <View className="flex-row items-center mb-1">
-            <Text className="mr-2">{sport?.emoji}</Text>
+            <Text className="mr-2">{sportData?.emoji || "..."}</Text>
             <Text className="text-sm" style={{ color: colors.textSecondary }}>
-              {sport?.name}
+              {sportData?.name || "Cargando..."}
             </Text>
           </View>
+
           <View className="flex-row items-center">
             <Ionicons name="location" size={14} color={colors.textSecondary} />
             <Text
