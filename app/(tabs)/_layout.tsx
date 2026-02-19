@@ -71,6 +71,13 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen 
+        name="profile/two-factor" 
+        options={{ 
+          href: null, 
+          headerShown: false 
+        }} 
+      />
     </Tabs>
   );
 }

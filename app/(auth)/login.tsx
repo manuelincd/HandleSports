@@ -5,6 +5,10 @@ import { authService } from '@/services/authService';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+// IMPORTAR FIREBASE PARA LEER DATOS DEL USUARIO
+import { doc, getDoc } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase'; // Asegúrate de tener 'auth' exportado desde tu lib/firebase
+
 export default function LoginScreen() {
   const [isRegister, setIsRegister] = useState(false);
   
@@ -44,6 +48,7 @@ export default function LoginScreen() {
 
     try {
       if (isRegister) {
+        // REGISTRO (No suele pedir 2FA inmediatamente, entra directo)
         await authService.register(email, password, name); 
         
         Alert.alert(
@@ -52,8 +57,31 @@ export default function LoginScreen() {
             [{ text: "Comenzar", onPress: () => router.replace("/(tabs)") }]
         );
       } else {
+        // LOGIN (Aquí verificamos 2FA)
+        
+        // 1. Autenticación básica con Firebase
         await authService.login(email, password);
-        router.replace("/(tabs)");
+        
+        // 2. Obtener UID del usuario recién logueado
+        const currentUser = auth.currentUser;
+        
+        if (currentUser) {
+            // 3. Buscar configuración de 2FA en Firestore
+            const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+            const userData = userDoc.data();
+
+            if (userData?.isTwoFactorEnabled && userData?.twoFactorSecret) {
+                // CASO A: TIENE 2FA ACTIVADO -> Redirigir a verificación
+                // Pasamos el secreto para que la otra pantalla pueda validar
+                router.push({
+                    pathname: "/(auth)/verify-2fa",
+                    params: { secret: userData.twoFactorSecret }
+                });
+            } else {
+                // CASO B: NO TIENE 2FA -> Entrar directo
+                router.replace("/(tabs)");
+            }
+        }
       }
     } catch (error: any) {
       const friendlyMessage = getFriendlyErrorMessage(error.code);
@@ -100,7 +128,7 @@ export default function LoginScreen() {
             </Text>
         </View>
 
-                {isRegister && (
+        {isRegister && (
             <View className="mb-4">
                 <Text className="ml-1 mb-2 font-bold text-xs uppercase" style={{ color: colors.textSecondary }}>Nombre de usuario</Text>
                 <TextInput 

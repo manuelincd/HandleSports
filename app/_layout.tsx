@@ -1,5 +1,7 @@
-// app/_layout.tsx
+import 'react-native-get-random-values';
 import { colors } from "@/theme/colors";
+import { Buffer } from 'buffer';
+global.Buffer = Buffer; 
 import {
   Manrope_400Regular,
   Manrope_500Medium,
@@ -12,7 +14,7 @@ import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, useColorScheme, View } from "react-native";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useEffect } from "react";
-import { useAuthStore } from "@/store/useAuthStore";
+import { useAuthStore } from "@/store/useAuthStore"; 
 import "../global.css";
 
 export default function RootLayout() {

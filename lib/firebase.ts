@@ -7,14 +7,13 @@ import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-// Tu configuración
 const firebaseConfig = {
-  apiKey: "AIzaSyBJ58jlz6cJM6KL5OmxHua-XZDHy62Qcwg",
-  authDomain: "handlesports-380a3.firebaseapp.com",
-  projectId: "handlesports-380a3",
-  storageBucket: "handlesports-380a3.firebasestorage.app",
-  messagingSenderId: "922310160482",
-  appId: "1:922310160482:web:b6e5929d4843200618613b"
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
 

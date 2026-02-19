@@ -1,7 +1,7 @@
 import { Screen } from "@/components/Screen";
 import { useAuthStore } from "@/store/useAuthStore";
-import { useFavoritesStore } from "@/store/useFavorites"; // Para stats
-import { useTournamentsStore } from "@/store/useTournaments"; // Para stats
+import { useFavoritesStore } from "@/store/useFavorites";
+import { useTournamentsStore } from "@/store/useTournaments";
 import { useThemeColors } from "@/theme/useThemeColors";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -32,7 +32,6 @@ export default function ProfileScreen() {
     );
   };
 
-  // --- VISTA INVITADO (MEJORADA) ---
   if (!user) {
     return (
       <Screen>
@@ -49,7 +48,6 @@ export default function ProfileScreen() {
             </Text>
           </View>
 
-          {/* Lista de beneficios */}
           <View className="mb-10 space-y-4">
             <BenefitRow icon="create-outline" text="Organiza tus propios torneos" colors={colors} />
             <BenefitRow icon="star-outline" text="Guarda tus equipos favoritos" colors={colors} />
@@ -76,14 +74,12 @@ export default function ProfileScreen() {
     );
   }
 
-  // --- VISTA USUARIO (MEJORADA) ---
   return (
     <View className="flex-1" style={{ backgroundColor: colors.background }}>
       <ScrollView
         contentContainerStyle={{ paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header con fondo decorativo */}
         <View style={{ backgroundColor: colors.surface, paddingBottom: 24, paddingTop: insets.top + 20, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 }}>
           <View className="items-center px-6">
             <Pressable className="relative mb-4">
@@ -97,7 +93,6 @@ export default function ProfileScreen() {
                   <Ionicons name="person" size={40} color={colors.textSecondary} />
                 )}
               </View>
-              {/* Botón de editar foto */}
               <View className="absolute bottom-0 right-0 p-2 rounded-full border-2" style={{ backgroundColor: colors.primary, borderColor: colors.surface }}>
                 <Ionicons name="camera" size={12} color="white" />
               </View>
@@ -108,7 +103,6 @@ export default function ProfileScreen() {
             </Text>
             <Text style={{ color: colors.textSecondary }}>{user.email}</Text>
 
-            {/* Estadísticas Rápidas */}
             <View className="flex-row mt-6 w-full justify-around bg-gray-50/5 p-4 rounded-2xl border" style={{ borderColor: colors.border, backgroundColor: colors.background }}>
               <StatItem label="Favoritos" value={favoritesCount} colors={colors} />
               <View className="w-[1px] h-full bg-gray-200" style={{ backgroundColor: colors.border }} />
@@ -136,6 +130,12 @@ export default function ProfileScreen() {
               onPress={() => { }}
               colors={colors}
               hasSwitch
+            />
+            <MenuOption
+              icon="shield-checkmark-outline"
+              label="Seguridad (2FA)"
+              onPress={() => router.push("/profile/two-factor")}
+              colors={colors}
             />
           </View>
 
@@ -189,7 +189,6 @@ export default function ProfileScreen() {
   );
 }
 
-// --- SUB-COMPONENTES ---
 
 function StatItem({ label, value, colors }: any) {
   return (
@@ -214,7 +213,7 @@ function MenuOption({ icon, label, onPress, colors, isDestructive = false, hasSw
       onPress={hasSwitch ? undefined : onPress}
       className="flex-row items-center p-4 border-b active:opacity-70"
       style={({ pressed }) => ({
-        borderBottomColor: colors.background, // Usamos background como separador
+        borderBottomColor: colors.background,
         borderBottomWidth: 1,
         backgroundColor: pressed && !hasSwitch ? colors.background : "transparent"
       })}
@@ -242,7 +241,7 @@ function MenuOption({ icon, label, onPress, colors, isDestructive = false, hasSw
         <Switch
           trackColor={{ false: "#767577", true: colors.primary }}
           thumbColor={"#f4f3f4"}
-          value={true} // Aquí iría el estado real
+          value={true}
           onValueChange={() => { }}
         />
       ) : !hideChevron && (
