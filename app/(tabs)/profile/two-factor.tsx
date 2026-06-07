@@ -153,7 +153,7 @@ export default function TwoFactorSetupScreen() {
             className="w-full py-4 rounded-2xl items-center mb-4"
             style={{ backgroundColor: colors.primary }}
         >
-            <Text className="text-white font-bold text-lg">Volver al perfil</Text>
+            <Text className="text-white font-bold text-lg">Volver a inicio</Text>
         </Pressable>
 
         <Pressable onPress={handleReconfigure}>
